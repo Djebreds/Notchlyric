@@ -24,13 +24,17 @@ struct LyricView: View {
     let line: LyricLine?
     let time: TimeInterval
     let position: Position
+    var style: SweepStyle = .scale
 
     private var isEar: Bool { position == .earLeft || position == .earRight }
 
-    private var font: Font {
-        isEar ? .system(size: 12, weight: .medium)
-              : .system(size: position == .notch ? 15 : 14, weight: .semibold)
+    private var baseSize: CGFloat {
+        isEar ? 12 : (position == .notch ? 15 : 14)
     }
+
+    private var weight: Font.Weight { isEar ? .medium : .semibold }
+
+    private var font: Font { .system(size: baseSize, weight: weight) }
 
     var body: some View {
         ZStack {
@@ -66,18 +70,20 @@ struct LyricView: View {
         }
     }
 
-    /// Per-word brightness rather than one gradient across the whole block.
+    /// Per-word emphasis rather than one gradient across the whole block.
     ///
     /// A single horizontal mask breaks on wrapped lines: words on the second
-    /// visual row sit left of the sweep edge and light up early. Colouring each
-    /// word by its own progress is wrap-correct and still reads as a
-    /// left-to-right karaoke sweep.
+    /// visual row sit left of the sweep edge and light up early. Styling each
+    /// word from its own progress is wrap-correct in both variants.
     private func sweptText(_ line: LyricLine) -> Text {
         line.words.enumerated().reduce(Text(verbatim: "")) { acc, pair in
-            let (i, w) = pair
-            let progress = w.progress(at: time)
-            let piece = Text(verbatim: i == 0 ? w.text : " " + w.text)
-                .foregroundColor(.white.opacity(0.30 + 0.70 * progress))
+            let (i, word) = pair
+            let progress = word.progress(at: time)
+            let size = baseSize * WordEmphasis.scale(progress: progress, style: style)
+            let piece = Text(verbatim: i == 0 ? word.text : " " + word.text)
+                .font(.system(size: size, weight: weight))
+                .foregroundColor(.white.opacity(
+                    WordEmphasis.opacity(progress: progress, style: style)))
             return acc + piece
         }
     }

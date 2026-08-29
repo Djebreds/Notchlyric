@@ -26,6 +26,7 @@ final class OverlayController {
 
         window = OverlayWindow(position: Settings.shared.position)
         model.position = Settings.shared.position
+        model.style = Settings.shared.sweepStyle
         window.setContent(LyricHost(model: model))
         window.reanchor(to: NSScreen.main)
     }
@@ -37,6 +38,7 @@ final class OverlayController {
         Settings.shared.onChange = { [weak self] in
             guard let self else { return }
             self.model.position = Settings.shared.position
+            self.model.style = Settings.shared.sweepStyle
             self.window.setPosition(Settings.shared.position, screen: NSScreen.main)
         }
 

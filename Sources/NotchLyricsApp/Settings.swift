@@ -6,6 +6,7 @@ final class Settings {
     private enum Key {
         static let position = "position"
         static let netEaseEnabled = "netEaseEnabled"
+        static let sweepStyle = "sweepStyle"
     }
 
     static let shared = Settings()
@@ -17,6 +18,11 @@ final class Settings {
     var position: Position {
         get { Position(rawValue: defaults.string(forKey: Key.position) ?? "") ?? .notch }
         set { defaults.set(newValue.rawValue, forKey: Key.position); onChange?() }
+    }
+
+    var sweepStyle: SweepStyle {
+        get { SweepStyle(rawValue: defaults.string(forKey: Key.sweepStyle) ?? "") ?? .scale }
+        set { defaults.set(newValue.rawValue, forKey: Key.sweepStyle); onChange?() }
     }
 
     var netEaseEnabled: Bool {
