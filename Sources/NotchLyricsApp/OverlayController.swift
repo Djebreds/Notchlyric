@@ -4,7 +4,8 @@ import NotchLyricsCore
 
 @MainActor
 final class OverlayController {
-    private let bridge = SpotifyBridge()
+    private let sources: [any PlaybackSource] = [SpotifyBridge(), MusicBridge()]
+    private var arbiter = SourceArbiter()
     private let service: LyricsService
     private let model = LyricModel()
     private let window: OverlayWindow
@@ -32,8 +33,14 @@ final class OverlayController {
     }
 
     func start() {
-        bridge.onChange = { [weak self] in self?.ingest($0) }
-        bridge.start()
+        for source in sources {
+            let sourceID = source.id
+            source.onChange = { [weak self] state in
+                guard let self else { return }
+                self.ingest(self.arbiter.update(sourceID: sourceID, state: state, at: .now))
+            }
+            source.start()
+        }
 
         Settings.shared.onChange = { [weak self] in
             guard let self else { return }
