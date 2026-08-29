@@ -18,6 +18,7 @@ final class OverlayController {
     private var isPlaying = false
     private var isFetching = false
     private let fonts = QCFFontStore()
+    private let artwork = ArtworkStore()
 
     init() {
         var providers: [any LyricsProvider] = [
@@ -91,6 +92,7 @@ final class OverlayController {
 
         guard state.trackID != currentTrackID else { return }
         currentTrackID = state.trackID
+        artwork.setTrack(artworkURL: state.artworkURL)
         document = nil
         model.line = nil
         isFetching = true
@@ -125,15 +127,20 @@ final class OverlayController {
         guard let document else {
             // Mid-fetch after a track change: hold the panel dimmed rather than
             // blinking it out. Once a fetch finishes with nothing, hide.
-            window.setState(isFetching ? .idle : .hidden)
+            model.isIdle = true
+            model.artwork = artwork.current
+            window.setState(isFetching || artwork.current != nil ? .idle : .hidden)
             return
         }
         let now = clock.position(at: .now)
         guard let idx = document.index(at: now), !document.lines[idx].isBlank else {
-            // Instrumental break: the last line stays on screen, dimmed.
+            // Instrumental break: album art if we have it, else the last line.
+            model.isIdle = true
+            model.artwork = artwork.current
             window.setState(.idle)
             return
         }
+        model.isIdle = false
         model.line = document.lines[idx]
         model.time = now
         window.setState(.active)
