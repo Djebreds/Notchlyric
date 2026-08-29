@@ -73,3 +73,48 @@ private let t0 = ContinuousClock.now
     let c = PlaybackClock()
     #expect(c.position(at: t0) == 0)
 }
+
+// MARK: - regression: the clock must never run backwards
+
+@Test func positionNeverGoesBackwardDuringANegativeCorrection() {
+    var c = PlaybackClock()
+    c.ingest(position: 10, at: t0, isPlaying: true)
+    let t1 = t0.advanced(by: .seconds(1))
+    // player reports slightly BEHIND our prediction, but under the seek
+    // threshold, so it is smoothed rather than snapped
+    c.ingest(position: 10.78, at: t1, isPlaying: true)
+    #expect(c.didSeek == false)
+
+    var previous = c.position(at: t1)
+    for ms in stride(from: 10, through: 800, by: 10) {
+        let now = c.position(at: t1.advanced(by: .milliseconds(ms)))
+        #expect(now >= previous - 0.0001)      // monotonic while playing
+        previous = now
+    }
+}
+
+@Test func negativeCorrectionStillConverges() {
+    var c = PlaybackClock()
+    c.ingest(position: 10, at: t0, isPlaying: true)
+    let t1 = t0.advanced(by: .seconds(1))
+    c.ingest(position: 10.78, at: t1, isPlaying: true)
+    // after enough time the clock should track the corrected timeline
+    let after = c.position(at: t1.advanced(by: .seconds(2)))
+    #expect(abs(after - 12.78) < 0.05)
+}
+
+@Test func monotonicAcrossTheWholeCorrectionRange() {
+    // every drift under the seek threshold must stay monotonic
+    for driftMs in stride(from: -240, through: 240, by: 20) {
+        var c = PlaybackClock()
+        c.ingest(position: 10, at: t0, isPlaying: true)
+        let t1 = t0.advanced(by: .seconds(1))
+        c.ingest(position: 11.0 + Double(driftMs) / 1000, at: t1, isPlaying: true)
+        var previous = c.position(at: t1)
+        for ms in stride(from: 10, through: 900, by: 10) {
+            let now = c.position(at: t1.advanced(by: .milliseconds(ms)))
+            #expect(now >= previous - 0.0001)
+            previous = now
+        }
+    }
+}

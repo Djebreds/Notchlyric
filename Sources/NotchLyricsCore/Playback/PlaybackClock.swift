@@ -7,6 +7,11 @@ import Foundation
 public struct PlaybackClock: Sendable {
     public static let seekThreshold: TimeInterval = 0.25
     public static let correctionWindow: TimeInterval = 0.2
+    /// Ceiling on how fast a correction may be applied, as a fraction of real
+    /// time. Below 1.0 the clock always keeps moving forward: a correction
+    /// spread too tightly would outrun the elapsed time and drag the position
+    /// backwards, which reads on screen as the emphasis jumping back a word.
+    public static let maxCorrectionRate: Double = 0.5
 
     private var anchorPosition: TimeInterval = 0
     private var anchorInstant: ContinuousClock.Instant?
@@ -14,6 +19,9 @@ public struct PlaybackClock: Sendable {
 
     private var pendingDelta: TimeInterval = 0
     private var correctionStart: ContinuousClock.Instant?
+    /// Widened beyond `correctionWindow` when a correction is large enough that
+    /// applying it over the default window would run the clock backwards.
+    private var activeCorrectionWindow: TimeInterval = PlaybackClock.correctionWindow
 
     public private(set) var didSeek = false
 
@@ -51,6 +59,8 @@ public struct PlaybackClock: Sendable {
         } else if delta != 0 {
             pendingDelta = delta
             correctionStart = instant
+            activeCorrectionWindow = max(Self.correctionWindow,
+                                         abs(delta) / Self.maxCorrectionRate)
         }
     }
 
@@ -63,7 +73,7 @@ public struct PlaybackClock: Sendable {
         }
         if let correctionStart, pendingDelta != 0 {
             let elapsed = Self.seconds(from: correctionStart.duration(to: instant))
-            let factor = min(1, max(0, elapsed / Self.correctionWindow))
+            let factor = min(1, max(0, elapsed / activeCorrectionWindow))
             p += pendingDelta * factor
         }
         return max(0, p)
