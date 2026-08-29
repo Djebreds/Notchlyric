@@ -6,9 +6,14 @@ public actor LyricsCache {
         case knownMissing
     }
 
+    /// Bump whenever stored word timings or document shape change, so entries
+    /// written by an older build are discarded instead of silently reused.
+    public static let schemaVersion = 2
+
     private struct Entry: Codable {
         var document: LyricsDocument?
         var storedAt: Date
+        var version: Int?
     }
 
     private let directory: URL
@@ -28,7 +33,8 @@ public actor LyricsCache {
 
     public func load(trackID: String) -> CacheHit? {
         guard let data = try? Data(contentsOf: url(for: trackID)),
-              let entry = try? JSONDecoder().decode(Entry.self, from: data)
+              let entry = try? JSONDecoder().decode(Entry.self, from: data),
+              entry.version == Self.schemaVersion
         else { return nil }
 
         if let doc = entry.document { return .found(doc) }
@@ -37,7 +43,7 @@ public actor LyricsCache {
     }
 
     public func store(trackID: String, document: LyricsDocument?) {
-        let entry = Entry(document: document, storedAt: Date())
+        let entry = Entry(document: document, storedAt: Date(), version: Self.schemaVersion)
         guard let data = try? JSONEncoder().encode(entry) else { return }
         try? data.write(to: url(for: trackID), options: .atomic)
     }
