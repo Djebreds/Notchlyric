@@ -72,3 +72,58 @@ private func qw(_ pos: Int, _ text: String, _ glyph: String,
 @Test func returnsEmptyForNoTimings() {
     #expect(QuranTiming.mushafLines(timings: [], words: [:]).isEmpty)
 }
+
+// MARK: - regression: display order must follow the mushaf, not the clock
+
+@Test func wordsRenderInPrintedOrderEvenWhenTimingsAreOutOfOrder() {
+    // Real data has words whose recorded start precedes the previous word's
+    // (95 such pairs in al-Baqarah). Sorting by time would swap them on screen.
+    let timings = [QuranTiming.VerseTiming(verseKey: "2:1", segments: [
+        [1, 1000, 1500],
+        [2, 900, 1400],     // starts BEFORE word 1
+        [3, 1600, 2000],
+    ])]
+    let words = ["2:1": [qw(1,"first","g1",page:1,line:1),
+                         qw(2,"second","g2",page:1,line:1),
+                         qw(3,"third","g3",page:1,line:1)]]
+    let lines = QuranTiming.mushafLines(timings: timings, words: words)
+    #expect(lines[0].words.map(\.text) == ["first", "second", "third"])
+}
+
+@Test func wordTimingsAreClampedMonotonic() {
+    let timings = [QuranTiming.VerseTiming(verseKey: "2:1", segments: [
+        [1, 1000, 1500], [2, 900, 1400], [3, 1600, 2000],
+    ])]
+    let words = ["2:1": [qw(1,"a","g1",page:1,line:1),
+                         qw(2,"b","g2",page:1,line:1),
+                         qw(3,"c","g3",page:1,line:1)]]
+    let w = QuranTiming.mushafLines(timings: timings, words: words)[0].words
+    for (a, b) in zip(w, w.dropFirst()) {
+        #expect(b.start >= a.start)      // emphasis never moves backward
+        #expect(a.end <= b.end)
+    }
+}
+
+@Test func printedOrderFollowsVerseThenPosition() {
+    // two verses sharing one mushaf line; verse order must win
+    let timings = [
+        QuranTiming.VerseTiming(verseKey: "2:1", segments: [[1, 5000, 5500]]),
+        QuranTiming.VerseTiming(verseKey: "2:2", segments: [[1, 4000, 4500]]),
+    ]
+    let words = ["2:1": [qw(1,"verse1","g1",page:1,line:1)],
+                 "2:2": [qw(1,"verse2","g2",page:1,line:1)]]
+    let lines = QuranTiming.mushafLines(timings: timings, words: words)
+    #expect(lines[0].words.map(\.text) == ["verse1", "verse2"])
+}
+
+@Test func lineSpanStillCoversAllItsWords() {
+    let timings = [QuranTiming.VerseTiming(verseKey: "2:1", segments: [
+        [1, 1000, 1500], [2, 900, 1400], [3, 1600, 2000],
+    ])]
+    let words = ["2:1": [qw(1,"a","g1",page:1,line:1),
+                         qw(2,"b","g2",page:1,line:1),
+                         qw(3,"c","g3",page:1,line:1)]]
+    let line = QuranTiming.mushafLines(timings: timings, words: words)[0]
+    #expect(line.start <= line.words.map(\.start).min()!)
+    #expect(line.end >= line.words.map(\.end).max()!)
+}
