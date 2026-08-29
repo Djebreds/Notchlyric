@@ -18,25 +18,9 @@ private final class MusicScriptRunner: @unchecked Sendable {
       try
         set tn to (track number of t)
       end try
-      set artPath to ""
-      try
-        if (count of artworks of t) > 0 then
-          set aw to artwork 1 of t
-          set artPath to (POSIX path of (path to temporary items)) & "nl-art-" & (persistent ID of t)
-          set fh to open for access (POSIX file artPath) with write permission
-          set eof fh to 0
-          write (raw data of aw) to fh
-          close access fh
-        end if
-      on error
-        try
-          close access (POSIX file artPath)
-        end try
-        set artPath to ""
-      end try
       return s & "\t" & (persistent ID of t) & "\t" & (name of t) & "\t" ¬
         & (artist of t) & "\t" & (album of t) & "\t" & (duration of t) & "\t" ¬
-        & (player position) & "\t" & tn & "\t" & g & "\t" & artPath
+        & (player position) & "\t" & tn & "\t" & g
     end tell
     """
 
@@ -114,7 +98,7 @@ final class MusicBridge: PlaybackSource {
     static func parse(_ raw: String?) -> PlaybackState? {
         guard let raw, raw != "NOTRUNNING", raw != "STOPPED" else { return nil }
         let f = raw.components(separatedBy: "\t")
-        guard f.count >= 9,
+        guard f.count == 9,
               let seconds = Double(f[5].trimmingCharacters(in: .whitespaces)),
               let position = Double(f[6].trimmingCharacters(in: .whitespaces))
         else { return nil }
@@ -125,11 +109,6 @@ final class MusicBridge: PlaybackSource {
             durationMs: Int((seconds * 1000).rounded()), position: position,
             isPlaying: f[0] == "playing",
             trackNumber: (track ?? 0) > 0 ? track : nil,
-            genre: genre.isEmpty ? nil : genre,
-            artworkURL: {
-                guard f.count > 9 else { return nil }
-                let p = f[9].trimmingCharacters(in: .whitespaces)
-                return p.isEmpty ? nil : URL(fileURLWithPath: p).absoluteString
-            }())
+            genre: genre.isEmpty ? nil : genre)
     }
 }

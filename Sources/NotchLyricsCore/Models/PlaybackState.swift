@@ -33,18 +33,13 @@ public struct PlaybackState: Equatable, Sendable {
     public var isPlaying: Bool
     public var trackNumber: Int?
     public var genre: String?
-    /// Album art location: an http URL from Spotify, or a file URL for art
-    /// extracted from a local Apple Music track. nil when there is none.
-    public var artworkURL: String?
 
     public init(trackID: String, title: String, artist: String, album: String,
                 durationMs: Int, position: TimeInterval, isPlaying: Bool,
-                trackNumber: Int? = nil, genre: String? = nil,
-                artworkURL: String? = nil) {
+                trackNumber: Int? = nil, genre: String? = nil) {
         self.trackID = trackID; self.title = title; self.artist = artist; self.album = album
         self.durationMs = durationMs; self.position = position; self.isPlaying = isPlaying
         self.trackNumber = trackNumber; self.genre = genre
-        self.artworkURL = artworkURL
     }
 
     public var duration: TimeInterval { Double(durationMs) / 1000 }
