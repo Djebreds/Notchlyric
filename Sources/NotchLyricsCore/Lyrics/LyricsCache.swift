@@ -8,7 +8,7 @@ public actor LyricsCache {
 
     /// Bump whenever stored word timings or document shape change, so entries
     /// written by an older build are discarded instead of silently reused.
-    public static let schemaVersion = 2
+    public static let schemaVersion = 3
 
     private struct Entry: Codable {
         var document: LyricsDocument?
