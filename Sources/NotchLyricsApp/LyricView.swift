@@ -41,11 +41,10 @@ struct LyricView: View {
         ZStack {
             background
             if let line, !line.isBlank {
-                sweptText(line)
-                    .font(font)
-                    .lineLimit(isEar ? 1 : 2)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.7)
+                WordFlow(words: line.words, time: time, style: style, rtl: false,
+                         spacing: isEar ? 5 : 7,
+                         font: { _ in .system(size: baseSize, weight: weight) },
+                         text: { romanize ? $0.text : ($0.original ?? $0.text) })
                     .padding(.horizontal, isEar ? 8 : 16)
                     .padding(.bottom, position == .notch ? 10 : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
@@ -68,25 +67,6 @@ struct LyricView: View {
                 .fill(.black.opacity(0.72))
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(.white.opacity(0.08), lineWidth: 1))
-        }
-    }
-
-    /// Per-word emphasis rather than one gradient across the whole block.
-    ///
-    /// A single horizontal mask breaks on wrapped lines: words on the second
-    /// visual row sit left of the sweep edge and light up early. Styling each
-    /// word from its own progress is wrap-correct in both variants.
-    private func sweptText(_ line: LyricLine) -> Text {
-        line.words.enumerated().reduce(Text(verbatim: "")) { acc, pair in
-            let (i, word) = pair
-            let progress = word.progress(at: time)
-            let size = baseSize * WordEmphasis.scale(progress: progress, style: style)
-            let shown = romanize ? word.text : (word.original ?? word.text)
-            let piece = Text(verbatim: i == 0 ? shown : " " + shown)
-                .font(.system(size: size, weight: weight))
-                .foregroundColor(.white.opacity(
-                    WordEmphasis.opacity(progress: progress, style: style)))
-            return acc + piece
         }
     }
 }

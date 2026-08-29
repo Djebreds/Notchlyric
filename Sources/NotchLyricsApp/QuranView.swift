@@ -11,32 +11,29 @@ struct QuranView: View {
 
     private let base: CGFloat = 23
 
-    private func run(_ word: WordToken, first: Bool) -> Text {
-        let progress = word.progress(at: time)
-        let size = base * WordEmphasis.scale(progress: progress, style: .scale)
-        let opacity = WordEmphasis.opacity(progress: progress, style: .scale)
+    /// Base font for a word: its mushaf page face when loaded, otherwise the
+    /// system Arabic face. Always at base size — emphasis is applied visually.
+    private func baseFont(_ word: WordToken) -> Font {
+        if let name = word.fontPage.flatMap(fontName),
+           let f = NSFont(name: name, size: base) {
+            return Font(f)
+        }
+        return .system(size: base)
+    }
 
-        // Use the glyph only when its page font is actually loaded; otherwise
-        // fall back to Unicode text in the system Arabic face.
-        let pageFont = word.fontPage.flatMap { fontName($0) }
-        let resolved = pageFont.flatMap { NSFont(name: $0, size: size) }
-        let font = resolved ?? NSFont.systemFont(ofSize: size)
-        let text = (resolved != nil ? word.glyph : nil) ?? (first ? word.text : " " + word.text)
-
-        return Text(verbatim: text).font(Font(font)).foregroundColor(.white.opacity(opacity))
+    /// Use the QCF glyph only when its page font actually loaded; otherwise
+    /// fall back to Unicode text, which the system face can render.
+    private func shown(_ word: WordToken) -> String {
+        let loaded = word.fontPage.flatMap(fontName).flatMap { NSFont(name: $0, size: base) } != nil
+        return (loaded ? word.glyph : nil) ?? word.text
     }
 
     var body: some View {
         ZStack {
             NotchShape().fill(.black)
             if let line, !line.words.isEmpty {
-                line.words.enumerated()
-                    .reduce(Text(verbatim: "")) { $0 + run($1.element, first: $1.offset == 0) }
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(6)
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(2)
-                    .environment(\.layoutDirection, .rightToLeft)
+                WordFlow(words: line.words, time: time, style: .scale, rtl: true,
+                         spacing: 6, font: baseFont, text: shown)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
