@@ -23,7 +23,7 @@ public enum WordEmphasis {
     public static let maxScaleBoost: Double = 0.24
 
     private static let dimOpacity: Double = 0.30
-    private static let sungOpacity: Double = 0.62
+    private static let sungOpacity: Double = 0.85
 
     public static func scale(progress: Double, style: SweepStyle) -> Double {
         guard style == .scale else { return 1.0 }

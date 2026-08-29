@@ -65,3 +65,30 @@ private let sampleDoc = LyricsDocument(trackID: "t1", providerID: "lrclib", line
     try! Data("garbage".utf8).write(to: dir.appendingPathComponent(f))
     #expect(await c.load(trackID: "t5") == nil)
 }
+
+@Test func rejectsEntriesWrittenByAnOlderSchema() async {
+    let dir = tempDir()
+    let c = LyricsCache(directory: dir)
+    await c.store(trackID: "t6", document: sampleDoc)
+    #expect(await c.load(trackID: "t6") != nil)
+
+    // Simulate an entry written before word timings changed.
+    let file = dir.appendingPathComponent(try! FileManager.default.contentsOfDirectory(atPath: dir.path)[0])
+    var raw = try! JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+    raw["version"] = LyricsCache.schemaVersion - 1
+    try! JSONSerialization.data(withJSONObject: raw).write(to: file)
+
+    #expect(await c.load(trackID: "t6") == nil)
+}
+
+@Test func treatsEntriesWithNoVersionAsStale() async {
+    let dir = tempDir()
+    let c = LyricsCache(directory: dir)
+    await c.store(trackID: "t7", document: sampleDoc)
+    let file = dir.appendingPathComponent(try! FileManager.default.contentsOfDirectory(atPath: dir.path)[0])
+    var raw = try! JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+    raw.removeValue(forKey: "version")
+    try! JSONSerialization.data(withJSONObject: raw).write(to: file)
+
+    #expect(await c.load(trackID: "t7") == nil)
+}

@@ -92,6 +92,21 @@ A track with no synced lyrics is remembered for 7 days so it isn't refetched on
 every replay. Cache lives at
 `~/Library/Application Support/NotchLyrics/cache/`.
 
+### Timing model
+
+An LRC line's timestamp says when the line *starts*; its end is just the next
+line's start, which usually includes dead air after the vocal stops. Measured
+across 552 lines from 10 songs, that dead air is **29% of the gap for a median
+line and 51% at p75**. Distributing words across the whole gap therefore makes
+emphasis drift progressively behind the vocal and snap back at each new line.
+
+Instead, each line's words are spread over an *estimated sung duration*:
+`min(gap, characters × rate)`. The rate is measured **per song** — the 20th
+percentile of gap ÷ characters, which approximates continuous singing in dense
+passages — because real rates vary about 2× between a fast pop track (0.050
+s/char) and a ballad (0.096 s/char). Once the words are done the line simply
+stays on screen fully sung until the next one.
+
 ### About word-by-word sync
 
 Spotify's own lyrics are `LINE_SYNCED` — one timestamp per line, no word
@@ -131,7 +146,7 @@ snapping on anything larger, which it treats as a seek.
 swift test
 ```
 
-79 tests covering LRC parsing (offsets, multi-timestamp lines, enhanced word
+87 tests covering LRC parsing (offsets, multi-timestamp lines, enhanced word
 tags, NetEase credit lines, malformed input), word-timing distribution, clock
 drift and seek detection, anchor geometry against measured hardware values, and
 both providers against recorded live-response fixtures. No network, no UI.
