@@ -16,9 +16,13 @@ final class OverlayController {
     private var fetchTask: Task<Void, Never>?
     private var displayTimer: Timer?
     private var isPlaying = false
+    private let fonts = QCFFontStore()
 
     init() {
-        var providers: [any LyricsProvider] = [LRCLIBProvider(http: URLSessionHTTP())]
+        var providers: [any LyricsProvider] = [
+            QuranProvider(http: URLSessionHTTP()),
+            LRCLIBProvider(http: URLSessionHTTP()),
+        ]
         if Settings.shared.netEaseEnabled {
             providers.append(NetEaseProvider(http: URLSessionHTTP()))
         }
@@ -28,6 +32,7 @@ final class OverlayController {
         window = OverlayWindow(position: Settings.shared.position)
         model.position = Settings.shared.position
         model.style = Settings.shared.sweepStyle
+        model.fontResolver = { [fonts] page in fonts.fontName(forPage: page) }
         window.setContent(LyricHost(model: model))
         window.reanchor(to: NSScreen.main)
     }
@@ -86,6 +91,14 @@ final class OverlayController {
             let doc = await self.service.lyrics(for: query)
             // Discard results that arrived after the track already changed (spec §4).
             guard self.currentTrackID == query.trackID else { return }
+            if let doc, doc.script == .arabic {
+                let pages = Set(doc.lines.flatMap { $0.words.compactMap(\.fontPage) })
+                await self.fonts.prefetch(pages: pages)
+                guard self.currentTrackID == query.trackID else { return }
+            }
+            self.model.script = doc?.script ?? .latin
+            self.window.script = doc?.script ?? .latin
+            self.window.reanchor(to: NSScreen.main)
             self.document = doc
         }
     }

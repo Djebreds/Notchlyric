@@ -16,6 +16,8 @@ extension ScreenMetrics {
 /// This configuration was validated on the target machine (spec §1.6).
 final class OverlayWindow: NSPanel {
     private(set) var position: Position
+    /// Arabic needs a taller, wider panel than Latin lyrics.
+    var script: Script = .latin
     private var hosting: NSHostingView<AnyView>?
 
     init(position: Position) {
@@ -52,7 +54,10 @@ final class OverlayWindow: NSPanel {
 
     /// Panel size per position: the ear is limited to the menu bar's height.
     private func preferredSize(for metrics: ScreenMetrics) -> CGSize {
-        switch position {
+        if script == .arabic, position == .notch {
+            return CGSize(width: 560, height: 104)
+        }
+        return switch position {
         case .notch:       CGSize(width: 460, height: 84)
         case .earLeft, .earRight:
             CGSize(width: 340, height: max(22, metrics.safeAreaTop))
