@@ -45,7 +45,8 @@ private final class ScriptRunner: @unchecked Sendable {
 /// Spotify exposes no lyrics property (spec §1.2), so this supplies only track
 /// identity and position; lyrics come from LyricsService.
 @MainActor
-final class SpotifyBridge {
+final class SpotifyBridge: PlaybackSource {
+    let id = "spotify"
     static let notificationName = Notification.Name("com.spotify.client.PlaybackStateChanged")
 
     var onChange: ((PlaybackState?) -> Void)?
