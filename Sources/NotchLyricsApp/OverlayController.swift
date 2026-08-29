@@ -32,6 +32,7 @@ final class OverlayController {
         window = OverlayWindow(position: Settings.shared.position)
         model.position = Settings.shared.position
         model.style = Settings.shared.sweepStyle
+        model.romanize = Settings.shared.romanizeCJK
         model.fontResolver = { [fonts] page in fonts.fontName(forPage: page) }
         window.setContent(LyricHost(model: model))
         window.reanchor(to: NSScreen.main)
@@ -51,6 +52,7 @@ final class OverlayController {
             guard let self else { return }
             self.model.position = Settings.shared.position
             self.model.style = Settings.shared.sweepStyle
+            self.model.romanize = Settings.shared.romanizeCJK
             self.window.setPosition(Settings.shared.position, screen: NSScreen.main)
         }
 

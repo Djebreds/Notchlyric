@@ -9,6 +9,7 @@ final class LyricModel: ObservableObject {
     @Published var position: Position = .notch
     @Published var style: SweepStyle = .scale
     @Published var script: Script = .latin
+    @Published var romanize: Bool = true
     @Published var fontResolver: (Int) -> String? = { _ in nil }
 }
 
@@ -19,7 +20,8 @@ struct LyricHost: View {
             QuranView(line: model.line, time: model.time, fontName: model.fontResolver)
         } else {
             LyricView(line: model.line, time: model.time,
-                      position: model.position, style: model.style)
+                      position: model.position, style: model.style,
+                      romanize: model.romanize)
         }
     }
 }

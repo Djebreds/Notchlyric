@@ -45,6 +45,12 @@ final class MenuBarController {
 
         menu.addItem(.separator())
 
+        let romanize = NSMenuItem(title: "Romanize Japanese / Chinese / Korean",
+                                  action: #selector(toggleRomanize), keyEquivalent: "")
+        romanize.target = self
+        romanize.state = Settings.shared.romanizeCJK ? .on : .off
+        menu.addItem(romanize)
+
         let netease = NSMenuItem(title: "Use NetEase as fallback",
                                  action: #selector(toggleNetEase), keyEquivalent: "")
         netease.target = self
@@ -69,6 +75,11 @@ final class MenuBarController {
         guard let raw = sender.representedObject as? String,
               let s = SweepStyle(rawValue: raw) else { return }
         Settings.shared.sweepStyle = s
+        rebuild()
+    }
+
+    @objc private func toggleRomanize() {
+        Settings.shared.romanizeCJK.toggle()
         rebuild()
     }
 
