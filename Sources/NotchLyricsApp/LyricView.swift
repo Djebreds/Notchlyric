@@ -27,19 +27,6 @@ struct LyricView: View {
 
     private var isEar: Bool { position == .earLeft || position == .earRight }
 
-    /// Fraction of the line already sung, derived from word spans.
-    private var sweep: Double {
-        guard let line, !line.words.isEmpty else { return 0 }
-        let widths = line.words.map { Double($0.text.count + 1) }
-        let total = widths.reduce(0, +)
-        guard total > 0 else { return 0 }
-        var done = 0.0
-        for (i, w) in line.words.enumerated() {
-            done += widths[i] * w.progress(at: time)
-        }
-        return min(1, max(0, done / total))
-    }
-
     private var font: Font {
         isEar ? .system(size: 12, weight: .medium)
               : .system(size: position == .notch ? 15 : 14, weight: .semibold)
@@ -49,7 +36,11 @@ struct LyricView: View {
         ZStack {
             background
             if let line, !line.isBlank {
-                textStack(line)
+                sweptText(line)
+                    .font(font)
+                    .lineLimit(isEar ? 1 : 2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.7)
                     .padding(.horizontal, isEar ? 8 : 16)
                     .padding(.bottom, position == .notch ? 10 : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
@@ -75,34 +66,19 @@ struct LyricView: View {
         }
     }
 
-    private func styled(_ text: String) -> some View {
-        Text(text)
-            .font(font)
-            .lineLimit(isEar ? 1 : 2)
-            .multilineTextAlignment(.center)
-            .minimumScaleFactor(0.7)
-    }
-
-    private func textStack(_ line: LyricLine) -> some View {
-        styled(line.text)
-            .foregroundStyle(.white.opacity(0.34))
-            .overlay(alignment: .leading) {
-                // Bright layer revealed left-to-right as the line is sung.
-                styled(line.text)
-                    .foregroundStyle(.white)
-                    .mask(alignment: .leading) {
-                        GeometryReader { geo in
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .white, location: 0),
-                                    .init(color: .white, location: max(0, sweep - 0.04)),
-                                    .init(color: .clear, location: min(1, sweep + 0.04)),
-                                    .init(color: .clear, location: 1),
-                                ],
-                                startPoint: .leading, endPoint: .trailing)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                        }
-                    }
-            }
+    /// Per-word brightness rather than one gradient across the whole block.
+    ///
+    /// A single horizontal mask breaks on wrapped lines: words on the second
+    /// visual row sit left of the sweep edge and light up early. Colouring each
+    /// word by its own progress is wrap-correct and still reads as a
+    /// left-to-right karaoke sweep.
+    private func sweptText(_ line: LyricLine) -> Text {
+        line.words.enumerated().reduce(Text(verbatim: "")) { acc, pair in
+            let (i, w) = pair
+            let progress = w.progress(at: time)
+            let piece = Text(verbatim: i == 0 ? w.text : " " + w.text)
+                .foregroundColor(.white.opacity(0.30 + 0.70 * progress))
+            return acc + piece
+        }
     }
 }
