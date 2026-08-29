@@ -16,8 +16,7 @@ private final class ScriptRunner: @unchecked Sendable {
       set theTrack to current track
       return theState & "\t" & (id of theTrack) & "\t" & (name of theTrack) & "\t" ¬
         & (artist of theTrack) & "\t" & (album of theTrack) & "\t" ¬
-        & (duration of theTrack) & "\t" & (player position) & "\t" ¬
-        & (artwork url of theTrack)
+        & (duration of theTrack) & "\t" & (player position)
     end tell
     """
 
@@ -101,14 +100,12 @@ final class SpotifyBridge: PlaybackSource {
     static func parse(_ raw: String?) -> PlaybackState? {
         guard let raw, raw != "NOTRUNNING", raw != "STOPPED" else { return nil }
         let f = raw.components(separatedBy: "\t")
-        guard f.count >= 7,
+        guard f.count == 7,
               let durationMs = Int(f[5].trimmingCharacters(in: .whitespaces)),
               let position = Double(f[6].trimmingCharacters(in: .whitespaces))
         else { return nil }
-        let art = f.count > 7 ? f[7].trimmingCharacters(in: .whitespaces) : ""
         return PlaybackState(trackID: f[1], title: f[2], artist: f[3], album: f[4],
                              durationMs: durationMs, position: position,
-                             isPlaying: f[0] == "playing",
-                             artworkURL: art.hasPrefix("http") ? art : nil)
+                             isPlaying: f[0] == "playing")
     }
 }
