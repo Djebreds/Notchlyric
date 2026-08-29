@@ -18,6 +18,14 @@ struct WordFlowLayout: Layout {
 
     func makeCache(subviews: Subviews) -> Cache { Cache() }
 
+    /// A degenerate proposal (nil or non-positive width) must not be taken
+    /// literally: wrapping to it would put every word on its own row and report
+    /// an enormous height, which AppKit would then apply to the window.
+    private func usableWidth(_ proposed: CGFloat?) -> CGFloat {
+        guard let proposed, proposed.isFinite, proposed > 1 else { return .greatestFiniteMagnitude }
+        return proposed
+    }
+
     private func measure(_ subviews: Subviews, maxWidth: CGFloat, cache: inout Cache) {
         cache.sizes = subviews.map { $0.sizeThatFits(.unspecified) }
         cache.rows = WordWrapper.wrap(widths: cache.sizes.map(\.width),
@@ -29,7 +37,7 @@ struct WordFlowLayout: Layout {
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
-        let maxWidth = proposal.width ?? .greatestFiniteMagnitude
+        let maxWidth = usableWidth(proposal.width)
         measure(subviews, maxWidth: maxWidth, cache: &cache)
         guard !cache.rows.isEmpty else { return .zero }
 
@@ -39,11 +47,12 @@ struct WordFlowLayout: Layout {
         }
         let width = cache.rows.map { rowWidth($0, cache) }.max() ?? 0
         return CGSize(width: min(width, maxWidth), height: height)
+
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
                        subviews: Subviews, cache: inout Cache) {
-        let maxWidth = proposal.width ?? bounds.width
+        let maxWidth = usableWidth(proposal.width ?? bounds.width)
         if cache.sizes.count != subviews.count { measure(subviews, maxWidth: maxWidth, cache: &cache) }
 
         var y = bounds.minY

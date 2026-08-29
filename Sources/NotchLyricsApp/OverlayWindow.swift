@@ -46,6 +46,9 @@ final class OverlayWindow: NSPanel {
             hosting.rootView = wrapped
         } else {
             let h = NSHostingView(rootView: wrapped)
+            // The window's size is owned by Anchor; never let SwiftUI's
+            // intrinsic content size resize it.
+            h.sizingOptions = []
             h.autoresizingMask = [.width, .height]
             contentView = h
             hosting = h
