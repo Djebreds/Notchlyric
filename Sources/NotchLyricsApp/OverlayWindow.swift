@@ -82,20 +82,20 @@ final class OverlayWindow: NSPanel {
 
     // MARK: - opacity
 
-    private var contentVisible = false
+    private var state: OverlayState = .hidden
     private var hovered = false
 
-    func fadeIn()  { setVisible(true) }
-    func fadeOut() { setVisible(false) }
-
-    func setVisible(_ visible: Bool) {
-        guard visible != contentVisible else { return }
-        contentVisible = visible
-        applyAlpha(duration: visible ? OverlayAlpha.fadeInDuration : OverlayAlpha.fadeOutDuration)
+    /// Instrumental breaks and track changes keep the panel on screen, dimmed,
+    /// rather than blinking it out between lines.
+    func setState(_ new: OverlayState) {
+        guard new != state else { return }
+        let wasHidden = state == .hidden
+        state = new
+        applyAlpha(duration: new == .hidden ? OverlayAlpha.fadeOutDuration
+                           : wasHidden ? OverlayAlpha.fadeInDuration
+                                       : OverlayAlpha.idleDuration)
     }
 
-    /// Dims rather than hides, so the panel stays readable while revealing
-    /// whatever sits behind it.
     func setHovered(_ isHovered: Bool) {
         guard isHovered != hovered else { return }
         hovered = isHovered
@@ -106,11 +106,11 @@ final class OverlayWindow: NSPanel {
     /// tracking areas, because the window is click-through and never receives
     /// mouse events.
     func containsCursor() -> Bool {
-        contentVisible && frame.contains(NSEvent.mouseLocation)
+        state != .hidden && frame.contains(NSEvent.mouseLocation)
     }
 
     private func applyAlpha(duration: Double) {
-        let target = OverlayAlpha.target(visible: contentVisible, hovered: hovered)
+        let target = OverlayAlpha.target(state: state, hovered: hovered)
         guard abs(alphaValue - target) > 0.001 else { return }
         if target > 0 { orderFrontRegardless() }
         NSAnimationContext.runAnimationGroup({ ctx in

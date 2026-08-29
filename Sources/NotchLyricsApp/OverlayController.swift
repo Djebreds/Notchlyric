@@ -16,6 +16,7 @@ final class OverlayController {
     private var fetchTask: Task<Void, Never>?
     private var displayTimer: Timer?
     private var isPlaying = false
+    private var isFetching = false
     private let fonts = QCFFontStore()
 
     init() {
@@ -79,7 +80,9 @@ final class OverlayController {
             document = nil
             currentTrackID = nil
             fetchTask?.cancel()
-            window.fadeOut()
+            isFetching = false
+            model.line = nil
+            window.setState(.hidden)
             return
         }
 
@@ -89,6 +92,8 @@ final class OverlayController {
         guard state.trackID != currentTrackID else { return }
         currentTrackID = state.trackID
         document = nil
+        model.line = nil
+        isFetching = true
 
         fetchTask?.cancel()
         let query = state.query
@@ -106,25 +111,31 @@ final class OverlayController {
             self.window.script = doc?.script ?? .latin
             self.window.reanchor(to: NSScreen.main)
             self.document = doc
+            self.isFetching = false
         }
     }
 
     private func render() {
         window.setHovered(window.containsCursor())
 
-        guard isPlaying, let document else {
-            model.line = nil
-            window.fadeOut()
+        guard isPlaying else {
+            window.setState(.hidden)
+            return
+        }
+        guard let document else {
+            // Mid-fetch after a track change: hold the panel dimmed rather than
+            // blinking it out. Once a fetch finishes with nothing, hide.
+            window.setState(isFetching ? .idle : .hidden)
             return
         }
         let now = clock.position(at: .now)
         guard let idx = document.index(at: now), !document.lines[idx].isBlank else {
-            model.line = nil
-            window.fadeOut()
+            // Instrumental break: the last line stays on screen, dimmed.
+            window.setState(.idle)
             return
         }
         model.line = document.lines[idx]
         model.time = now
-        window.fadeIn()
+        window.setState(.active)
     }
 }
