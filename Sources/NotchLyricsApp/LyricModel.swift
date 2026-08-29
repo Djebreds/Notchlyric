@@ -10,13 +10,17 @@ final class LyricModel: ObservableObject {
     @Published var style: SweepStyle = .scale
     @Published var script: Script = .latin
     @Published var romanize: Bool = true
+    /// Instrumental break or track change: show a note, not a stale line.
+    @Published var isIdle: Bool = false
     @Published var fontResolver: (Int) -> String? = { _ in nil }
 }
 
 struct LyricHost: View {
     @ObservedObject var model: LyricModel
     var body: some View {
-        if model.script == .arabic {
+        if model.isIdle {
+            IdleSymbolView()
+        } else if model.script == .arabic {
             QuranView(line: model.line, time: model.time, fontName: model.fontResolver)
         } else {
             LyricView(line: model.line, time: model.time,

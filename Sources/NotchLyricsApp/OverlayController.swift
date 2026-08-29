@@ -125,15 +125,18 @@ final class OverlayController {
         guard let document else {
             // Mid-fetch after a track change: hold the panel dimmed rather than
             // blinking it out. Once a fetch finishes with nothing, hide.
+            model.isIdle = true
             window.setState(isFetching ? .idle : .hidden)
             return
         }
         let now = clock.position(at: .now)
         guard let idx = document.index(at: now), !document.lines[idx].isBlank else {
-            // Instrumental break: the last line stays on screen, dimmed.
+            // Instrumental break: a neutral note, not the sentence that ended.
+            model.isIdle = true
             window.setState(.idle)
             return
         }
+        model.isIdle = false
         model.line = document.lines[idx]
         model.time = now
         window.setState(.active)
