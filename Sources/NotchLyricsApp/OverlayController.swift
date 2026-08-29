@@ -43,7 +43,11 @@ final class OverlayController {
             let sourceID = source.id
             source.onChange = { [weak self] state in
                 guard let self else { return }
-                self.ingest(self.arbiter.update(sourceID: sourceID, state: state, at: .now))
+                switch self.arbiter.update(sourceID: sourceID, state: state, at: .now) {
+                case .update(let fresh): self.ingest(fresh)
+                case .hide:              self.ingest(nil)
+                case .unchanged:         break
+                }
             }
             source.start()
         }
