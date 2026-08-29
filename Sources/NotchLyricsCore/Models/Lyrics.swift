@@ -5,9 +5,16 @@ public struct WordToken: Equatable, Sendable, Codable {
     public var start: TimeInterval
     public var end: TimeInterval
     public var isEstimated: Bool
+    /// QCF glyph standing for the whole word; nil for Latin lyrics.
+    public var glyph: String?
+    /// Mushaf page whose QCF font renders `glyph`. Resolved per word because a
+    /// verse can straddle a page boundary.
+    public var fontPage: Int?
 
-    public init(text: String, start: TimeInterval, end: TimeInterval, isEstimated: Bool) {
+    public init(text: String, start: TimeInterval, end: TimeInterval, isEstimated: Bool,
+                glyph: String? = nil, fontPage: Int? = nil) {
         self.text = text; self.start = start; self.end = end; self.isEstimated = isEstimated
+        self.glyph = glyph; self.fontPage = fontPage
     }
 
     /// 0...1 progress of this word at `time`.
@@ -33,10 +40,12 @@ public struct LyricLine: Equatable, Sendable, Codable {
 public struct LyricsDocument: Equatable, Sendable, Codable {
     public var trackID: String
     public var providerID: String
+    public var script: Script
     public var lines: [LyricLine]
 
-    public init(trackID: String, providerID: String, lines: [LyricLine]) {
-        self.trackID = trackID; self.providerID = providerID; self.lines = lines
+    public init(trackID: String, providerID: String, script: Script = .latin, lines: [LyricLine]) {
+        self.trackID = trackID; self.providerID = providerID
+        self.script = script; self.lines = lines
     }
 
     public var isEmpty: Bool { lines.allSatisfy(\.isBlank) }

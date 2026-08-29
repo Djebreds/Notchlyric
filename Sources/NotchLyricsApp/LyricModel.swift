@@ -8,12 +8,18 @@ final class LyricModel: ObservableObject {
     @Published var time: TimeInterval = 0
     @Published var position: Position = .notch
     @Published var style: SweepStyle = .scale
+    @Published var script: Script = .latin
+    @Published var fontResolver: (Int) -> String? = { _ in nil }
 }
 
 struct LyricHost: View {
     @ObservedObject var model: LyricModel
     var body: some View {
-        LyricView(line: model.line, time: model.time,
-                  position: model.position, style: model.style)
+        if model.script == .arabic {
+            QuranView(line: model.line, time: model.time, fontName: model.fontResolver)
+        } else {
+            LyricView(line: model.line, time: model.time,
+                      position: model.position, style: model.style)
+        }
     }
 }
