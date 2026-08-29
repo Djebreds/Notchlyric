@@ -33,7 +33,7 @@ struct QuranView: View {
             NotchShape().fill(.black)
             if let line, !line.words.isEmpty {
                 WordFlow(words: line.words, time: time, style: .scale, rtl: true,
-                         spacing: 6, font: baseFont, text: shown)
+                         spacing: 6, lineID: line.start, font: baseFont, text: shown)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
