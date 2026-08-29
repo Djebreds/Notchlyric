@@ -25,6 +25,7 @@ struct LyricView: View {
     let time: TimeInterval
     let position: Position
     var style: SweepStyle = .scale
+    var romanize: Bool = true
 
     private var isEar: Bool { position == .earLeft || position == .earRight }
 
@@ -80,7 +81,8 @@ struct LyricView: View {
             let (i, word) = pair
             let progress = word.progress(at: time)
             let size = baseSize * WordEmphasis.scale(progress: progress, style: style)
-            let piece = Text(verbatim: i == 0 ? word.text : " " + word.text)
+            let shown = romanize ? word.text : (word.original ?? word.text)
+            let piece = Text(verbatim: i == 0 ? shown : " " + shown)
                 .font(.system(size: size, weight: weight))
                 .foregroundColor(.white.opacity(
                     WordEmphasis.opacity(progress: progress, style: style)))

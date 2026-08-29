@@ -74,6 +74,15 @@ public enum LRCParser {
     private static func parseWords(_ content: String) -> ([WordToken], Bool) {
         let tags = content.matches(of: wordTag)
         if tags.isEmpty {
+            // CJK has no spaces, so splitting on whitespace would yield about
+            // one "word" per line and per-word tracking would not work at all.
+            if CJKSegmenter.isCJK(content) {
+                let words = CJKSegmenter.segment(content).map {
+                    WordToken(text: $0.romaji, start: 0, end: 0, isEstimated: true,
+                              original: $0.text)
+                }
+                if !words.isEmpty { return (words, true) }
+            }
             let words = content.split(separator: " ").map {
                 WordToken(text: String($0), start: 0, end: 0, isEstimated: true)
             }

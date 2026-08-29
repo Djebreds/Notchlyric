@@ -102,3 +102,42 @@ import Foundation
 @Test func returnsEmptyForEmptyInput() {
     #expect(LRCParser.parse("", trackDuration: 100).isEmpty)
 }
+
+// MARK: - CJK segmentation (neutral sentences, not lyrics)
+
+@Test func cjkLineIsSplitIntoManyWordsNotOne() {
+    let lines = LRCParser.parse("[00:10.00] 夜空に浮かぶ星を数えている", trackDuration: 100)
+    #expect(lines.count == 1)
+    // the space splitter would have produced exactly 1
+    #expect(lines[0].words.count >= 6)
+}
+
+@Test func cjkWordsDisplayRomajiAndKeepTheOriginal() {
+    let lines = LRCParser.parse("[00:10.00] 天気", trackDuration: 100)
+    let w = lines[0].words[0]
+    #expect(w.text.lowercased() == "tenki")
+    #expect(w.original == "天気")
+}
+
+@Test func latinLinesAreUntouchedBySegmentation() {
+    let lines = LRCParser.parse("[00:10.00] Kiss me hard before you go", trackDuration: 100)
+    #expect(lines[0].words.count == 6)
+    #expect(lines[0].words[0].text == "Kiss")
+    #expect(lines[0].words[0].original == nil)
+}
+
+@Test func alreadyRomanizedLinesAreNotReprocessed() {
+    let lines = LRCParser.parse("[00:10.00] yozora ni ukabu hoshi", trackDuration: 100)
+    #expect(lines[0].words.map(\.text) == ["yozora", "ni", "ukabu", "hoshi"])
+    #expect(lines[0].words.allSatisfy { $0.original == nil })
+}
+
+@Test func cjkWordTimingsAreStillDistributed() {
+    let lines = LRCParser.parse("[00:10.00] 静かな街を歩いていた\n[00:20.00] 次の行",
+                                trackDuration: 100)
+    let w = WordTimingEstimator.apply(to: lines)[0].words
+    for (a, b) in zip(w, w.dropFirst()) {
+        #expect(a.start < a.end)
+        #expect(abs(a.end - b.start) < 0.0001)
+    }
+}

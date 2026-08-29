@@ -10,11 +10,13 @@ public struct WordToken: Equatable, Sendable, Codable {
     /// Mushaf page whose QCF font renders `glyph`. Resolved per word because a
     /// verse can straddle a page boundary.
     public var fontPage: Int?
+    /// Source text before romanization; nil when `text` is already the source.
+    public var original: String?
 
     public init(text: String, start: TimeInterval, end: TimeInterval, isEstimated: Bool,
-                glyph: String? = nil, fontPage: Int? = nil) {
+                glyph: String? = nil, fontPage: Int? = nil, original: String? = nil) {
         self.text = text; self.start = start; self.end = end; self.isEstimated = isEstimated
-        self.glyph = glyph; self.fontPage = fontPage
+        self.glyph = glyph; self.fontPage = fontPage; self.original = original
     }
 
     /// 0...1 progress of this word at `time`.
