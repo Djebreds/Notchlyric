@@ -104,6 +104,8 @@ final class OverlayController {
     }
 
     private func render() {
+        window.setHovered(window.containsCursor())
+
         guard isPlaying, let document else {
             model.line = nil
             window.fadeOut()
