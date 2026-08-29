@@ -17,6 +17,7 @@ final class OverlayController {
     private var displayTimer: Timer?
     private var isPlaying = false
     private var isFetching = false
+    private var renderedLineStart: TimeInterval?
     private let fonts = QCFFontStore()
 
     init() {
@@ -102,16 +103,21 @@ final class OverlayController {
             let doc = await self.service.lyrics(for: query)
             // Discard results that arrived after the track already changed (spec §4).
             guard self.currentTrackID == query.trackID else { return }
-            if let doc, doc.script == .arabic {
-                let pages = Set(doc.lines.flatMap { $0.words.compactMap(\.fontPage) })
-                await self.fonts.prefetch(pages: pages)
-                guard self.currentTrackID == query.trackID else { return }
-            }
             self.model.script = doc?.script ?? .latin
             self.window.script = doc?.script ?? .latin
             self.window.reanchor(to: NSScreen.main)
             self.document = doc
             self.isFetching = false
+
+            // Fonts load behind the lyrics, not in front of them. A long surah
+            // needs dozens of page fonts (48 for al-Baqarah); waiting for all of
+            // them before showing anything leaves the overlay stuck on the idle
+            // note. Words render in the system Arabic face until their page
+            // font registers, and the 60 Hz redraw picks it up automatically.
+            if let doc, doc.script == .arabic {
+                let pages = Set(doc.lines.flatMap { $0.words.compactMap(\.fontPage) })
+                Task { [weak self] in await self?.fonts.prefetch(pages: pages) }
+            }
         }
     }
 
@@ -137,7 +143,13 @@ final class OverlayController {
             return
         }
         model.isIdle = false
-        model.line = document.lines[idx]
+        // Assigning an unchanged line would invalidate the whole view tree
+        // 60 times a second; only the time actually needs to move.
+        let line = document.lines[idx]
+        if renderedLineStart != line.start {
+            renderedLineStart = line.start
+            model.line = line
+        }
         model.time = now
         window.setState(.active)
     }

@@ -10,10 +10,20 @@ struct WordFlowLayout: Layout {
     var spacing: CGFloat = 6
     var rowSpacing: CGFloat = 2
     var rtl: Bool = false
+    /// Identity of the line being laid out. Measurements are reused while this
+    /// is unchanged, so text is not re-measured on every emphasis frame —
+    /// scaleEffect and colour do not alter a word's reported size.
+    var lineID: Double = 0
 
     struct Cache {
+        struct Key: Equatable {
+            let lineID: Double
+            let count: Int
+            let width: CGFloat
+        }
         var sizes: [CGSize] = []
         var rows: [[Int]] = []
+        var key: Key?
     }
 
     func makeCache(subviews: Subviews) -> Cache { Cache() }
@@ -27,6 +37,9 @@ struct WordFlowLayout: Layout {
     }
 
     private func measure(_ subviews: Subviews, maxWidth: CGFloat, cache: inout Cache) {
+        let key = Cache.Key(lineID: lineID, count: subviews.count, width: maxWidth)
+        guard cache.key != key else { return }        // text metrics are unchanged
+        cache.key = key
         cache.sizes = subviews.map { $0.sizeThatFits(.unspecified) }
         cache.rows = WordWrapper.wrap(widths: cache.sizes.map(\.width),
                                       maxWidth: maxWidth, spacing: spacing)
@@ -53,7 +66,7 @@ struct WordFlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
                        subviews: Subviews, cache: inout Cache) {
         let maxWidth = usableWidth(proposal.width ?? bounds.width)
-        if cache.sizes.count != subviews.count { measure(subviews, maxWidth: maxWidth, cache: &cache) }
+        measure(subviews, maxWidth: maxWidth, cache: &cache)
 
         var y = bounds.minY
         for row in cache.rows {
@@ -79,12 +92,14 @@ struct WordFlow: View {
     let style: SweepStyle
     let rtl: Bool
     let spacing: CGFloat
+    /// Identity of this line, so layout measurements can be reused between frames.
+    let lineID: Double
     /// Base font for a word — never the emphasised size.
     let font: (WordToken) -> Font
     let text: (WordToken) -> String
 
     var body: some View {
-        WordFlowLayout(spacing: spacing, rtl: rtl) {
+        WordFlowLayout(spacing: spacing, rtl: rtl, lineID: lineID) {
             ForEach(Array(words.enumerated()), id: \.offset) { _, word in
                 let progress = word.progress(at: time)
                 Text(verbatim: text(word))

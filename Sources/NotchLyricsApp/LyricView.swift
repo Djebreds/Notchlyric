@@ -42,7 +42,7 @@ struct LyricView: View {
             background
             if let line, !line.isBlank {
                 WordFlow(words: line.words, time: time, style: style, rtl: false,
-                         spacing: isEar ? 5 : 7,
+                         spacing: isEar ? 5 : 7, lineID: line.start,
                          font: { _ in .system(size: baseSize, weight: weight) },
                          text: { romanize ? $0.text : ($0.original ?? $0.text) })
                     .padding(.horizontal, isEar ? 8 : 16)
