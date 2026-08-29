@@ -77,20 +77,42 @@ final class OverlayWindow: NSPanel {
         reanchor(to: screen)
     }
 
-    func fadeIn() {
-        guard alphaValue < 1 else { return }
-        orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.22
-            animator().alphaValue = 1
-        }
+    // MARK: - opacity
+
+    private var contentVisible = false
+    private var hovered = false
+
+    func fadeIn()  { setVisible(true) }
+    func fadeOut() { setVisible(false) }
+
+    func setVisible(_ visible: Bool) {
+        guard visible != contentVisible else { return }
+        contentVisible = visible
+        applyAlpha(duration: visible ? OverlayAlpha.fadeInDuration : OverlayAlpha.fadeOutDuration)
     }
 
-    func fadeOut() {
-        guard alphaValue > 0 else { return }
+    /// Dims rather than hides, so the panel stays readable while revealing
+    /// whatever sits behind it.
+    func setHovered(_ isHovered: Bool) {
+        guard isHovered != hovered else { return }
+        hovered = isHovered
+        applyAlpha(duration: OverlayAlpha.hoverDuration)
+    }
+
+    /// True when the cursor sits over the panel. Checked by polling rather than
+    /// tracking areas, because the window is click-through and never receives
+    /// mouse events.
+    func containsCursor() -> Bool {
+        contentVisible && frame.contains(NSEvent.mouseLocation)
+    }
+
+    private func applyAlpha(duration: Double) {
+        let target = OverlayAlpha.target(visible: contentVisible, hovered: hovered)
+        guard abs(alphaValue - target) > 0.001 else { return }
+        if target > 0 { orderFrontRegardless() }
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.3
-            animator().alphaValue = 0
+            ctx.duration = duration
+            animator().alphaValue = target
         }, completionHandler: { [weak self] in
             guard let self, self.alphaValue == 0 else { return }
             self.orderOut(nil)
