@@ -30,6 +30,21 @@ final class MenuBarController {
 
         menu.addItem(.separator())
 
+        let styleHeader = NSMenuItem(title: "Lyric Style", action: nil, keyEquivalent: "")
+        styleHeader.isEnabled = false
+        menu.addItem(styleHeader)
+
+        for s in SweepStyle.allCases {
+            let mi = NSMenuItem(title: s.displayName,
+                                action: #selector(selectStyle(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = s.rawValue
+            mi.state = Settings.shared.sweepStyle == s ? .on : .off
+            menu.addItem(mi)
+        }
+
+        menu.addItem(.separator())
+
         let netease = NSMenuItem(title: "Use NetEase as fallback",
                                  action: #selector(toggleNetEase), keyEquivalent: "")
         netease.target = self
@@ -47,6 +62,13 @@ final class MenuBarController {
         guard let raw = sender.representedObject as? String,
               let p = Position(rawValue: raw) else { return }
         Settings.shared.position = p
+        rebuild()
+    }
+
+    @objc private func selectStyle(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let s = SweepStyle(rawValue: raw) else { return }
+        Settings.shared.sweepStyle = s
         rebuild()
     }
 

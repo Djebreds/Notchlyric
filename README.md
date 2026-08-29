@@ -61,6 +61,18 @@ Pick one from the menu-bar icon; it moves live, no restart.
 On displays with no notch, the notch and ear positions fall back to a pill
 centred under the menu bar.
 
+## Lyric styles
+
+Also switchable from the menu-bar icon.
+
+| Style | Behaviour |
+|---|---|
+| **Pop Active Word** (default) | The current word grows ~24% and goes fully lit; sung words step back, upcoming words stay dim. Snappy — the eye tracks one moving emphasis |
+| **Fade In Words** | Each word brightens gradually across its own duration. Smoother, but reads slower because every word is mid-fade for its whole span |
+
+Both are wrap-correct: emphasis comes from each word's own progress, not from a
+gradient across the block, so words on a second visual row don't light up early.
+
 ### Why not *inside* the notch?
 
 The notch is a physical cutout in the display panel — there are no pixels behind
@@ -119,7 +131,7 @@ snapping on anything larger, which it treats as a seek.
 swift test
 ```
 
-70 tests covering LRC parsing (offsets, multi-timestamp lines, enhanced word
+79 tests covering LRC parsing (offsets, multi-timestamp lines, enhanced word
 tags, NetEase credit lines, malformed input), word-timing distribution, clock
 drift and seek detection, anchor geometry against measured hardware values, and
 both providers against recorded live-response fixtures. No network, no UI.
