@@ -18,8 +18,11 @@ actor StubHTTP: HTTPFetching {
     private func respond(_ url: URL) throws -> (Data, Int) {
         requestedURLs.append(url.absoluteString)
         if shouldFail { throw StubError() }
-        for (key, r) in routes where url.absoluteString.contains(key) {
-            return (r.body, r.status)
+        // Most specific key wins, so a retry with fewer query items can be
+        // stubbed differently from the first attempt.
+        for key in routes.keys.sorted(by: { $0.count > $1.count })
+        where url.absoluteString.contains(key) {
+            return (routes[key]!.body, routes[key]!.status)
         }
         return (Data("{}".utf8), 404)
     }
