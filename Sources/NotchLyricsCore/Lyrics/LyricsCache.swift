@@ -8,7 +8,7 @@ public actor LyricsCache {
 
     /// Bump whenever stored word timings or document shape change, so entries
     /// written by an older build are discarded instead of silently reused.
-    public static let schemaVersion = 5
+    public static let schemaVersion = 6
 
     private struct Entry: Codable {
         var document: LyricsDocument?
@@ -19,8 +19,14 @@ public actor LyricsCache {
     private let directory: URL
     private let negativeTTL: TimeInterval
 
-    /// - Parameter negativeTTL: how long a "no lyrics" result stays valid.
-    public init(directory: URL, negativeTTL: TimeInterval = 7 * 24 * 3600) {
+    /// How long a "no lyrics" result stays valid.
+    ///
+    /// Kept short: these are community databases, so a track with no timed
+    /// lyrics today may well have them tomorrow, and a stale miss is invisible
+    /// to the user — it just looks like the app is broken.
+    public static let defaultNegativeTTL: TimeInterval = 3600
+
+    public init(directory: URL, negativeTTL: TimeInterval = LyricsCache.defaultNegativeTTL) {
         self.directory = directory
         self.negativeTTL = negativeTTL
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

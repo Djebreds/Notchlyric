@@ -15,9 +15,21 @@ public extension LyricsProvider {
         return abs(candidate - track.duration) <= tolerance
     }
 
-    func buildDocument(trackID: String, lrc: String, duration: TimeInterval) -> LyricsDocument? {
-        let lines = WordTimingEstimator.apply(to: LRCParser.parse(lrc, trackDuration: duration))
-        let doc = LyricsDocument(trackID: trackID, providerID: id, lines: lines)
-        return doc.isEmpty ? nil : doc
+    /// Parses, times and validates lyrics against the track that is playing.
+    ///
+    /// Returns nil when the result looks like a different recording: timings
+    /// running past the end of the track, or CJK lyrics on a track whose own
+    /// metadata is entirely Latin.
+    func buildDocument(for track: TrackQuery, lrc: String) -> LyricsDocument? {
+        let lines = WordTimingEstimator.apply(to: LRCParser.parse(lrc, trackDuration: track.duration))
+        let doc = LyricsDocument(trackID: track.trackID, providerID: id, lines: lines)
+        guard !doc.isEmpty else { return nil }
+
+        guard timingsFit(lines, track: track) else { return nil }
+
+        let lyricsAreCJK = CJKSegmenter.isCJK(lines.prefix(8).map(\.text).joined(separator: " "))
+        guard LyricsMatch.scriptPlausible(lyricsAreCJK: lyricsAreCJK, track: track) else { return nil }
+
+        return doc
     }
 }

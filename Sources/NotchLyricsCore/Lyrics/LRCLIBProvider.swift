@@ -32,6 +32,6 @@ public struct LRCLIBProvider: LyricsProvider {
               durationMatches(payload.duration ?? 0, track)
         else { return nil }
 
-        return buildDocument(trackID: track.trackID, lrc: lrc, duration: track.duration)
+        return buildDocument(for: track, lrc: lrc)
     }
 }

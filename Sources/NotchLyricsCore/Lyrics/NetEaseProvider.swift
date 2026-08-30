@@ -15,10 +15,12 @@ public struct NetEaseProvider: LyricsProvider {
 
     private struct SearchResponse: Decodable {
         struct Result: Decodable { let songs: [Song]? }
+        struct Artist: Decodable { let name: String? }
         struct Song: Decodable {
             let id: Int
             let name: String
             let duration: Int      // milliseconds
+            let artists: [Artist]?
         }
         let result: Result?
     }
@@ -41,7 +43,7 @@ public struct NetEaseProvider: LyricsProvider {
         let payload = try JSONDecoder().decode(LyricResponse.self, from: data)
         guard let lrc = payload.lrc?.lyric, !lrc.isEmpty else { return nil }
 
-        return buildDocument(trackID: track.trackID, lrc: lrc, duration: track.duration)
+        return buildDocument(for: track, lrc: lrc)
     }
 
     private func search(_ track: TrackQuery) async throws -> Int? {
@@ -62,7 +64,14 @@ public struct NetEaseProvider: LyricsProvider {
         let payload = try JSONDecoder().decode(SearchResponse.self, from: data)
         guard let songs = payload.result?.songs else { return nil }
 
+        // Duration alone is not enough: a live cut can land within seconds of
+        // the studio version, and the search can return unrelated songs.
         // NetEase durations are milliseconds; compare in seconds.
-        return songs.first { durationMatches(Double($0.duration) / 1000, track) }?.id
+        return songs.first { song in
+            guard durationMatches(Double(song.duration) / 1000, track) else { return false }
+            guard LyricsMatch.isSameRecording(candidate: song.name, query: track.title) else { return false }
+            let artist = (song.artists ?? []).compactMap(\.name).joined(separator: " ")
+            return LyricsMatch.isSameArtist(candidate: artist, query: track.artist)
+        }?.id
     }
 }

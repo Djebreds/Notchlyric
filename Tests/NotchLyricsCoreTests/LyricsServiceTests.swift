@@ -90,3 +90,52 @@ private func serviceDoc(_ provider: String) -> LyricsDocument {
 @Test func emptyProviderListReturnsNil() async {
     #expect(await LyricsService(providers: [], cache: tempCache()).lyrics(for: sampleQuery) == nil)
 }
+
+// MARK: - a failure must not be remembered as "this track has no lyrics"
+
+@Test func aCleanMissIsCachedSoItIsNotRefetched() async {
+    let c = Counter()
+    let cache = tempCache()
+    let svc = LyricsService(providers: [FakeProvider(id: "a", result: nil, calls: c)], cache: cache)
+    _ = await svc.lyrics(for: sampleQuery)
+    guard case .knownMissing? = await cache.load(trackID: sampleQuery.trackID) else {
+        Issue.record("a genuine miss should be remembered"); return
+    }
+}
+
+@Test func aProviderErrorIsNotCachedAsAMiss() async {
+    // a network blip must not blank the track until the TTL expires
+    let c = Counter()
+    let cache = tempCache()
+    let svc = LyricsService(
+        providers: [FakeProvider(id: "a", result: nil, shouldThrow: true, calls: c)], cache: cache)
+    #expect(await svc.lyrics(for: sampleQuery) == nil)
+    #expect(await cache.load(trackID: sampleQuery.trackID) == nil,
+            "an errored lookup must stay retryable")
+}
+
+@Test func anErrorAlongsideACleanMissStillBlocksCaching() async {
+    let c = Counter()
+    let cache = tempCache()
+    let svc = LyricsService(providers: [
+        FakeProvider(id: "a", result: nil, calls: c),
+        FakeProvider(id: "b", result: nil, shouldThrow: true, calls: c),
+    ], cache: cache)
+    _ = await svc.lyrics(for: sampleQuery)
+    #expect(await cache.load(trackID: sampleQuery.trackID) == nil)
+}
+
+@Test func erroredLookupsAreRetriedOnTheNextPlay() async {
+    let c = Counter()
+    let cache = tempCache()
+    let svc = LyricsService(
+        providers: [FakeProvider(id: "a", result: nil, shouldThrow: true, calls: c)], cache: cache)
+    _ = await svc.lyrics(for: sampleQuery)
+    _ = await svc.lyrics(for: sampleQuery)
+    #expect(await c.ids == ["a", "a"], "should try again rather than serve a cached miss")
+}
+
+@Test func negativeResultsExpireQuickly() {
+    // community lyrics get contributed; a miss must not stick for days
+    #expect(LyricsCache.defaultNegativeTTL <= 3600)
+}
