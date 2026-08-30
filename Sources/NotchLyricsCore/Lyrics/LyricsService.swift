@@ -13,11 +13,23 @@ public actor LyricsService {
 
     /// Never throws: a provider that fails is logged and skipped so one bad
     /// source cannot break the chain (spec §3.3).
-    public func lyrics(for track: TrackQuery) async -> LyricsDocument? {
-        switch await cache.load(trackID: track.trackID) {
-        case .found(let doc): return doc
-        case .knownMissing:   return nil
-        case nil:             break
+    /// Forgets one track so the next lookup consults the providers again.
+    public func forget(trackID: String) async {
+        await cache.remove(trackID: trackID)
+    }
+
+    /// - Parameter refresh: skip whatever is cached and ask the providers
+    ///   again. A manual re-sync uses this to get past a wrong match or a
+    ///   remembered miss.
+    public func lyrics(for track: TrackQuery, refresh: Bool = false) async -> LyricsDocument? {
+        if refresh {
+            await cache.remove(trackID: track.trackID)
+        } else {
+            switch await cache.load(trackID: track.trackID) {
+            case .found(let doc): return doc
+            case .knownMissing:   return nil
+            case nil:             break
+            }
         }
 
         var anyProviderFailed = false

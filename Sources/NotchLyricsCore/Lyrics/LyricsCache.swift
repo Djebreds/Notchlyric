@@ -54,6 +54,11 @@ public actor LyricsCache {
         try? data.write(to: url(for: trackID), options: .atomic)
     }
 
+    /// Forgets one track, so the next lookup asks the providers again.
+    public func remove(trackID: String) {
+        try? FileManager.default.removeItem(at: url(for: trackID))
+    }
+
     private func url(for trackID: String) -> URL {
         let safe = trackID.map { $0.isLetter || $0.isNumber ? String($0) : "_" }.joined()
         return directory.appendingPathComponent("\(safe).json")

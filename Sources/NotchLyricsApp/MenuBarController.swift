@@ -4,6 +4,8 @@ import NotchLyricsCore
 @MainActor
 final class MenuBarController {
     private var statusItem: NSStatusItem!
+    /// Invoked by the Re-sync Now menu item.
+    var onResync: (() -> Void)?
 
     func install() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -14,6 +16,11 @@ final class MenuBarController {
 
     private func rebuild() {
         let menu = NSMenu()
+
+        let resync = NSMenuItem(title: "Re-sync Now", action: #selector(resyncNow), keyEquivalent: "r")
+        resync.target = self
+        menu.addItem(resync)
+        menu.addItem(.separator())
 
         let header = NSMenuItem(title: "Position", action: nil, keyEquivalent: "")
         header.isEnabled = false
@@ -72,6 +79,10 @@ final class MenuBarController {
                                 action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
         statusItem.menu = menu
+    }
+
+    @objc private func resyncNow() {
+        onResync?()
     }
 
     @objc private func selectPosition(_ sender: NSMenuItem) {

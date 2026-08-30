@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menuBar = MenuBarController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        menuBar.onResync = { [overlay] in overlay.resync() }
         menuBar.install()
         overlay.start()
     }

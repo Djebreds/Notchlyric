@@ -17,6 +17,8 @@ final class OverlayController {
     private var displayTimer: Timer?
     private var isPlaying = false
     private var isFetching = false
+    /// Set by a manual re-sync so the next fetch bypasses the cache.
+    private var forceRefresh = false
     private var renderedLineStart: TimeInterval?
     private let fonts = QCFFontStore()
 
@@ -75,6 +77,32 @@ final class OverlayController {
         displayTimer = t
     }
 
+    /// Manual re-sync: discard drift, forget what we cached for this track, and
+    /// ask the player and the providers again from scratch.
+    ///
+    /// Covers both ways this goes wrong — a clock that has drifted, and a
+    /// document that is missing or belongs to the wrong recording.
+    func resync() {
+        clock.reset()
+        renderedLineStart = nil
+        model.line = nil
+        document = nil
+        isFetching = true
+        forceRefresh = true
+
+        let trackID = currentTrackID
+        currentTrackID = nil          // force the next state to look like a new track
+        fetchTask?.cancel()
+
+        for source in sources { source.stop(); source.start() }   // re-poll immediately
+
+        if let trackID {
+            Task { [weak self] in
+                await self?.service.forget(trackID: trackID)
+            }
+        }
+    }
+
     private func ingest(_ state: PlaybackState?) {
         guard let state else {
             isPlaying = false
@@ -100,7 +128,7 @@ final class OverlayController {
         let query = state.query
         fetchTask = Task { [weak self] in
             guard let self else { return }
-            let doc = await self.service.lyrics(for: query)
+            let doc = await self.service.lyrics(for: query, refresh: self.forceRefresh)
             // Discard results that arrived after the track already changed (spec §4).
             guard self.currentTrackID == query.trackID else { return }
             self.model.script = doc?.script ?? .latin
@@ -108,6 +136,7 @@ final class OverlayController {
             self.window.reanchor(to: NSScreen.main)
             self.document = doc
             self.isFetching = false
+            self.forceRefresh = false
 
             // Fonts load behind the lyrics, not in front of them. A long surah
             // needs dozens of page fonts (48 for al-Baqarah); waiting for all of
