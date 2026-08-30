@@ -23,17 +23,15 @@ final class OverlayController {
     private let fonts = QCFFontStore()
 
     init() {
-        var providers: [any LyricsProvider] = [
-            QuranProvider(http: URLSessionHTTP()),
-            LRCLIBProvider(http: URLSessionHTTP()),
-            // Ahead of NetEase and Kugou because it aggregates both, and is the
-            // only song source offering measured per-word timings.
-            LrcmuxProvider(http: URLSessionHTTP()),
-        ]
+        // Order requested: Quran, then the regional catalogues, then the
+        // aggregator, with LRCLIB last.
+        var providers: [any LyricsProvider] = [QuranProvider(http: URLSessionHTTP())]
         if Settings.shared.netEaseEnabled {
-            providers.append(NetEaseProvider(http: URLSessionHTTP()))
             providers.append(KugouProvider(http: URLSessionHTTP()))
+            providers.append(NetEaseProvider(http: URLSessionHTTP()))
         }
+        providers.append(LrcmuxProvider(http: URLSessionHTTP()))
+        providers.append(LRCLIBProvider(http: URLSessionHTTP()))
         service = LyricsService(providers: providers,
                                 cache: LyricsCache(directory: LyricsCache.defaultDirectory()))
 
