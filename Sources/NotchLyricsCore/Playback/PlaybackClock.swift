@@ -29,6 +29,21 @@ public struct PlaybackClock: Sendable {
 
     public var hasSample: Bool { anchorInstant != nil }
 
+    /// Drops all state so the next sample anchors fresh.
+    ///
+    /// Used by a manual re-sync: whatever drift or half-applied correction the
+    /// clock was carrying is discarded rather than smoothed away, and the next
+    /// reading from the player becomes the truth.
+    public mutating func reset() {
+        anchorPosition = 0
+        anchorInstant = nil
+        isPlaying = false
+        pendingDelta = 0
+        correctionStart = nil
+        activeCorrectionWindow = Self.correctionWindow
+        didSeek = false
+    }
+
     public mutating func ingest(position newPosition: TimeInterval,
                                 at instant: ContinuousClock.Instant,
                                 isPlaying playing: Bool) {
