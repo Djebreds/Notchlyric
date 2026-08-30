@@ -26,6 +26,9 @@ final class OverlayController {
         var providers: [any LyricsProvider] = [
             QuranProvider(http: URLSessionHTTP()),
             LRCLIBProvider(http: URLSessionHTTP()),
+            // Ahead of NetEase and Kugou because it aggregates both, and is the
+            // only song source offering measured per-word timings.
+            LrcmuxProvider(http: URLSessionHTTP()),
         ]
         if Settings.shared.netEaseEnabled {
             providers.append(NetEaseProvider(http: URLSessionHTTP()))

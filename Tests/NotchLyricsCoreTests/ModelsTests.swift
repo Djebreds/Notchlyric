@@ -83,5 +83,5 @@ private func doc(_ starts: [TimeInterval]) -> LyricsDocument {
 }
 
 @Test func cacheSchemaVersionIsThree() {
-    #expect(LyricsCache.schemaVersion == 8)
+    #expect(LyricsCache.schemaVersion == 9)
 }
