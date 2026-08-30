@@ -83,3 +83,46 @@ private let lrclibPlainOnly = """
         try await LRCLIBProvider(http: http).fetch(sampleQuery)
     }
 }
+
+// MARK: - album mismatch: the synced entry often sits under a different album
+
+private let lrclibPlainSingle = """
+{"id":9,"trackName":"T","artistName":"A","albumName":"T","duration":265.0,
+ "instrumental":false,"plainLyrics":"words","syncedLyrics":null}
+"""
+
+private let lrclibSyncedAlbum = """
+{"id":10,"trackName":"T","artistName":"A","albumName":"Studio Album","duration":265.0,
+ "instrumental":false,"plainLyrics":"words",
+ "syncedLyrics":"[00:17.38] alpha beta\\n[00:21.61] gamma delta"}
+"""
+
+@Test func retriesWithoutAlbumWhenTheExactMatchHasNoTimestamps() async throws {
+    let http = StubHTTP()
+    // keys must differ in length so the most-specific match is unambiguous
+    await http.stub(urlContains: "album_name=Born", json: lrclibPlainSingle)  // first attempt
+    await http.stub(urlContains: "lrclib", json: lrclibSyncedAlbum)           // retry
+    let doc = try await LRCLIBProvider(http: http).fetch(sampleQuery)
+    #expect(doc != nil, "the synced entry under a different album should be found")
+    #expect(doc?.lines.count == 2)
+    let urls = await http.requestedURLs
+    #expect(urls.count == 2)
+    guard urls.count == 2 else { return }
+    #expect(urls[0].contains("album_name"))
+    #expect(urls[1].contains("album_name") == false)
+    #expect(urls[1].contains("duration=265"), "duration must still constrain the retry")
+}
+
+@Test func doesNotRetryWhenTheFirstAttemptAlreadyHasTimestamps() async throws {
+    let http = StubHTTP()
+    await http.stub(urlContains: "lrclib.net", json: lrclibHit)
+    _ = try await LRCLIBProvider(http: http).fetch(sampleQuery)
+    #expect(await http.requestedURLs.count == 1, "no wasted second request")
+}
+
+@Test func returnsNilWhenNeitherAttemptHasTimestamps() async throws {
+    let http = StubHTTP()
+    await http.stub(urlContains: "lrclib", json: lrclibPlainSingle)
+    let doc = try await LRCLIBProvider(http: http).fetch(sampleQuery)
+    #expect(doc == nil)
+}

@@ -58,7 +58,7 @@ final class MenuBarController {
         romanize.state = Settings.shared.romanizeCJK ? .on : .off
         menu.addItem(romanize)
 
-        let netease = NSMenuItem(title: "Use NetEase as fallback",
+        let netease = NSMenuItem(title: "Extra sources (NetEase, Kugou)",
                                  action: #selector(toggleNetEase), keyEquivalent: "")
         netease.target = self
         netease.state = Settings.shared.netEaseEnabled ? .on : .off
