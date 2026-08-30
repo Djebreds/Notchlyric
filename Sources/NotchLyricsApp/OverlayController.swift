@@ -23,15 +23,17 @@ final class OverlayController {
     private let fonts = QCFFontStore()
 
     init() {
-        // Order requested: Quran, then the regional catalogues, then the
-        // aggregator, with LRCLIB last.
+        // Quran, then the regional catalogues, then LRCLIB, then the aggregator.
         var providers: [any LyricsProvider] = [QuranProvider(http: URLSessionHTTP())]
         if Settings.shared.netEaseEnabled {
             providers.append(KugouProvider(http: URLSessionHTTP()))
             providers.append(NetEaseProvider(http: URLSessionHTTP()))
         }
-        providers.append(LrcmuxProvider(http: URLSessionHTTP()))
+        // LRCLIB ahead of lrcmux: its entries are more often timed against the
+        // master actually being played, and correct alignment beats lrcmux's
+        // measured-but-differently-timed words.
         providers.append(LRCLIBProvider(http: URLSessionHTTP()))
+        providers.append(LrcmuxProvider(http: URLSessionHTTP()))
         service = LyricsService(providers: providers,
                                 cache: LyricsCache(directory: LyricsCache.defaultDirectory()))
 
