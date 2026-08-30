@@ -26,9 +26,24 @@ private let track = TrackQuery(trackID: "t", title: "It's Time",
     #expect(Probe().timingsFit([line(3, 20), line(288, 292.6)], track: track) == false)
 }
 
+@Test func rejectsTheObservedNetEaseMismatch() {
+    // 60 lines to 260s against a 193s track
+    let short = TrackQuery(trackID: "t", title: "T", artist: "A", album: "B", duration: 193)
+    #expect(Probe().timingsFit([line(22, 30), line(255, 260)], track: short) == false)
+}
+
 @Test func toleratesASmallOverrun() {
     // LRC timestamps often sit a little past the final vocal
     #expect(Probe().timingsFit([line(3, 20), line(249, 252)], track: track))
+}
+
+@Test func toleratesTrailingCreditLinesPastTheAudio() {
+    // Measured on a real track: 193s of audio, three trailing lines to 207.5s.
+    // Judging on the final timestamp with a tight margin threw this away.
+    let dido = TrackQuery(trackID: "t", title: "T", artist: "A", album: "B", duration: 193.3)
+    var lines = (0..<35).map { line(Double($0) * 5, Double($0) * 5 + 4) }
+    lines += [line(200, 202), line(204, 206), line(207.5, 209)]
+    #expect(Probe().timingsFit(lines, track: dido))
 }
 
 @Test func acceptsAnythingWhenTrackDurationIsUnknown() {

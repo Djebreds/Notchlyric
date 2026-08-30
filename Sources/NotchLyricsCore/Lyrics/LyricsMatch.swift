@@ -61,9 +61,14 @@ public enum LyricsMatch {
 public extension LyricsProvider {
     /// Rejects lyrics whose timings run past the end of the track — a strong
     /// signal the match is a different, longer recording.
+    /// Rejects lyrics that belong to a longer recording.
+    ///
+    /// Tuned to measured data: real files carry trailing credit lines up to
+    /// about 15s past the audio, while a wrong recording ran 45-67s over. The
+    /// threshold sits between the two rather than hugging either.
     func timingsFit(_ lines: [LyricLine], track: TrackQuery,
-                    overrun: TimeInterval = 8) -> Bool {
-        guard track.duration > 0, let last = lines.last else { return true }
-        return last.start <= track.duration + overrun
+                    overrun: TimeInterval = 30) -> Bool {
+        guard track.duration > 0, let last = lines.map(\.start).max() else { return true }
+        return last <= track.duration + overrun
     }
 }
