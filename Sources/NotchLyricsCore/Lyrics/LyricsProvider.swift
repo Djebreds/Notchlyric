@@ -25,8 +25,6 @@ public extension LyricsProvider {
         let doc = LyricsDocument(trackID: track.trackID, providerID: id, lines: lines)
         guard !doc.isEmpty else { return nil }
 
-        guard timingsFit(lines, track: track) else { return nil }
-
         let lyricsAreCJK = CJKSegmenter.isCJK(lines.prefix(8).map(\.text).joined(separator: " "))
         guard LyricsMatch.scriptPlausible(lyricsAreCJK: lyricsAreCJK, track: track) else { return nil }
 
