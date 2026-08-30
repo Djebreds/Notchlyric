@@ -20,7 +20,10 @@ public enum LRCParser {
 
         var collected: [(start: TimeInterval, words: [WordToken], estimated: Bool)] = []
 
-        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        // Split on any newline rather than the literal "\n": Swift treats
+        // "\r\n" as a single Character, so splitting on "\n" never matches a
+        // CRLF file and the whole payload arrives as one line.
+        for rawLine in text.split(whereSeparator: \.isNewline) {
             let line = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
             if line.isEmpty { continue }
 

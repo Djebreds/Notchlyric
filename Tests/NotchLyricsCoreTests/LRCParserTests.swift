@@ -141,3 +141,34 @@ import Foundation
         #expect(abs(a.end - b.start) < 0.0001)
     }
 }
+
+// MARK: - line endings
+
+@Test func parsesWindowsLineEndings() {
+    // Swift treats "\r\n" as ONE Character, so splitting on "\n" never matches
+    // it and the whole file arrives as a single line.
+    let lrc = "[00:17.38] alpha beta\r\n[00:21.61] gamma delta\r\n[00:25.00] epsilon\r\n"
+    let lines = LRCParser.parse(lrc, trackDuration: 100)
+    #expect(lines.count == 3)
+    #expect(lines[0].text == "alpha beta")
+}
+
+@Test func parsesWindowsLineEndingsAfterAnOffsetTag() {
+    // the payload that produced zero lines: CRLF endings behind an offset tag
+    let lrc = "[offset:-2652]\r\n[00:17.38] alpha beta\r\n[00:21.61] gamma delta\r\n"
+    let lines = LRCParser.parse(lrc, trackDuration: 100)
+    #expect(lines.count == 2)
+}
+
+@Test func parsesClassicMacLineEndings() {
+    let lines = LRCParser.parse("[00:10.00] alpha\r[00:20.00] beta", trackDuration: 100)
+    #expect(lines.count == 2)
+}
+
+@Test func lineEndingStyleDoesNotChangeTheResult() {
+    let body = "[offset:+500]%@[00:17.38] alpha beta%@[00:21.61] gamma delta"
+    let lf = LRCParser.parse(body.replacingOccurrences(of: "%@", with: "\n"), trackDuration: 100)
+    let crlf = LRCParser.parse(body.replacingOccurrences(of: "%@", with: "\r\n"), trackDuration: 100)
+    #expect(lf.count == crlf.count)
+    #expect(lf.map(\.start) == crlf.map(\.start))
+}
