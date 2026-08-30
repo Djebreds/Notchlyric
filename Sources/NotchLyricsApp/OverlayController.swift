@@ -29,6 +29,7 @@ final class OverlayController {
         ]
         if Settings.shared.netEaseEnabled {
             providers.append(NetEaseProvider(http: URLSessionHTTP()))
+            providers.append(KugouProvider(http: URLSessionHTTP()))
         }
         service = LyricsService(providers: providers,
                                 cache: LyricsCache(directory: LyricsCache.defaultDirectory()))
