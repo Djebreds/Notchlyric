@@ -58,6 +58,16 @@ final class MenuBarController {
         menu.addItem(netease)
 
         menu.addItem(.separator())
+
+        let login = NSMenuItem(title: LoginItem.needsApproval
+                                 ? "Launch at Login (approve in Settings)"
+                                 : "Launch at Login",
+                               action: #selector(toggleLoginItem), keyEquivalent: "")
+        login.target = self
+        login.state = LoginItem.isEnabled ? .on : .off
+        menu.addItem(login)
+
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit NotchLyrics",
                                 action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
@@ -80,6 +90,11 @@ final class MenuBarController {
 
     @objc private func toggleRomanize() {
         Settings.shared.romanizeCJK.toggle()
+        rebuild()
+    }
+
+    @objc private func toggleLoginItem() {
+        LoginItem.setEnabled(!LoginItem.isEnabled)
         rebuild()
     }
 
