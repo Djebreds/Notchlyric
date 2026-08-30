@@ -1,144 +1,147 @@
 # NotchLyrics
 
-Time-synced Spotify lyrics in a click-through overlay on macOS — anchored below
-the notch, in a menu-bar ear, or bottom-right. Menu-bar app, no Dock icon.
+Time-synced lyrics in a click-through overlay under the MacBook notch. Follows
+Spotify and Apple Music, romanizes Japanese, Chinese and Korean, and renders
+Quran recitation in the mushaf typeface with real per-word timings.
 
-![position: notch](https://img.shields.io/badge/positions-4-black) ![no deps](https://img.shields.io/badge/dependencies-none-black)
+Menu-bar app, no Dock icon, no third-party dependencies.
 
-## What it does
+![positions](https://img.shields.io/badge/positions-4-black)
+![sources](https://img.shields.io/badge/players-Spotify%20%2B%20Apple%20Music-black)
+![tests](https://img.shields.io/badge/tests-182-black)
+![deps](https://img.shields.io/badge/dependencies-none-black)
 
-Reads the playing track and playhead from Spotify via AppleScript, fetches
-synced lyrics from LRCLIB (with NetEase as a fallback), and renders the current
-line with a per-word karaoke sweep. The overlay floats above the menu bar, joins
-every Space, and ignores clicks.
+---
+
+### Spotify
+
+![Spotify lyrics in the notch](docs/images/spotify-lyrics.png)
+
+The current line hangs below the notch, with the word being sung enlarged and
+fully lit while sung words step back and upcoming words stay dim.
+
+### Japanese, Chinese and Korean
+
+![Japanese lyrics romanized](docs/images/japanese-romaji.png)
+
+CJK scripts have no spaces, so a naive splitter treats a whole line as one word
+and per-word tracking simply does not work — measured at 1.3 words per line
+against 6.1 for English. Lines are tokenized properly and romanized, which
+brings CJK tracking to ~7.3 words per line.
+
+### Quran recitation
+
+![Quran recitation in the mushaf typeface](docs/images/quran-arabic.png)
+
+Recitation played through Apple Music is rendered right-to-left in the QCF
+mushaf typeface, advancing word by word against **real measured timings** —
+not the estimates used for songs.
+
+---
 
 ## Requirements
 
-- macOS 14+ (developed and verified on macOS 26.6 Tahoe, Apple Silicon)
-- Xcode 26 / Swift 6.3 toolchain
-- Spotify desktop app
+- macOS 14+ (developed and verified on macOS 26.6, Apple Silicon)
+- Xcode 26 / Swift 6.3
+- Spotify and/or Apple Music
 
-## Build
+## Install
 
 ```bash
 ./Scripts/build-app.sh release
-open NotchLyrics.app
+cp -R NotchLyrics.app /Applications/
+open /Applications/NotchLyrics.app
 ```
 
-For development:
+macOS will ask for **Automation** permission so the app can read playback state.
+Approve it. If you miss the prompt: System Settings → Privacy & Security →
+Automation → NotchLyrics.
+
+Enable **Launch at Login** from the menu, or in one shot:
 
 ```bash
-swift build && swift run NotchLyricsApp
-swift test
+/Applications/NotchLyrics.app/Contents/MacOS/NotchLyrics --enable-login-item
 ```
 
-## First run
+> **Ad-hoc signing caveat.** The Automation grant and the login-item
+> registration are both tied to the bundle's code signature, which changes on
+> every rebuild. After rebuilding you may need to re-approve Automation and
+> re-enable Launch at Login. Signing with a Developer ID makes both stick.
 
-macOS will ask for **Automation** permission so the app can read Spotify's
-playback state. Approve it. If you miss the prompt, enable it under
-System Settings → Privacy & Security → Automation → NotchLyrics → Spotify.
+## Menu
 
-To reset the grant:
+| Item | Notes |
+|---|---|
+| **Re-sync Now** (⌘R) | Resets the clock, re-reads the player, and forgets the cached lyrics for the track so a wrong or missing match is refetched |
+| **Position** | Below the Notch (default), Menu Bar Left/Right, Bottom Right |
+| **Lyric Style** | Pop Active Word (default) or Fade In Words |
+| **Romanize CJK** | Show romaji, or the original script — tracking works either way |
+| **NetEase fallback** | Extra coverage, mainly for Asian catalogues |
+| **Launch at Login** | |
 
-```bash
-tccutil reset AppleEvents com.local.NotchLyrics
+## How it works
+
+`NotchLyricsCore` is a pure library with no AppKit or SwiftUI import — parsing,
+timing, geometry, matching and network logic all live there and are unit-tested.
+`NotchLyricsApp` is the thin AppKit/SwiftUI shell.
+
+```
+SpotifyBridge ─┐
+               ├─> SourceArbiter ─> PlaybackClock ──60 Hz──> OverlayController
+MusicBridge ───┘                                                    │
+                                                                    ▼
+                     QuranProvider → LRCLIB → NetEase        OverlayWindow
+                              │                              (NSPanel, all Spaces,
+                         LyricsCache                          above the menu bar)
 ```
 
-**Ad-hoc signing caveat:** the Automation grant is tied to the binary's code
-signature. Rebuilding changes it, so macOS may prompt again after each rebuild.
-Signing with a real Developer ID instead makes the grant stick.
-
-## Positions
-
-Pick one from the menu-bar icon; it moves live, no restart.
-
-| Position | Behaviour |
-|---|---|
-| **Below the Notch** (default) | Black panel hanging from the notch, squared top corners and rounded bottom so it reads as one shape with the cutout |
-| **Menu Bar (Left / Right)** | Inline text in the display area beside the cutout |
-| **Bottom Right** | Floating rounded pill above the Dock |
-
-On displays with no notch, the notch and ear positions fall back to a pill
-centred under the menu bar.
-
-## Lyric styles
-
-Also switchable from the menu-bar icon.
-
-| Style | Behaviour |
-|---|---|
-| **Pop Active Word** (default) | The current word grows ~24% and goes fully lit; sung words step back, upcoming words stay dim. Snappy — the eye tracks one moving emphasis |
-| **Fade In Words** | Each word brightens gradually across its own duration. Smoother, but reads slower because every word is mid-fade for its whole span |
-
-Both are wrap-correct: emphasis comes from each word's own progress, not from a
-gradient across the block, so words on a second visual row don't light up early.
+Players are polled at 1 Hz — an AppleScript round trip costs ~54 ms warm — and
+`PlaybackClock` interpolates between samples against a `ContinuousClock`,
+correcting drift without ever running backwards.
 
 ### Why not *inside* the notch?
 
-The notch is a physical cutout in the display panel — there are no pixels behind
-it. On this machine it measures 220 × 38 pt, with real display area only in the
-790 pt "ears" either side. Anything claiming to draw "in the notch" is really
-drawing directly below it. That's what this does.
-
-## Lyrics sources
-
-Tried in order, first hit wins, results cached to disk by Spotify track ID:
-
-1. **LRCLIB** — free, no API key, no account
-2. **NetEase** — fallback, no auth, stronger Asian-language coverage
-   (toggle in the menu)
-
-A track with no synced lyrics is remembered for 7 days so it isn't refetched on
-every replay. Cache lives at
-`~/Library/Application Support/NotchLyrics/cache/`.
+The notch is a physical cutout: there are no pixels behind it. On this machine
+it measures 220 × 38 pt, with real display only in the 790 pt "ears" either
+side. Anything claiming to draw "in the notch" is drawing directly below it,
+which is what this does.
 
 ### Timing model
 
 An LRC line's timestamp says when the line *starts*; its end is just the next
-line's start, which usually includes dead air after the vocal stops. Measured
-across 552 lines from 10 songs, that dead air is **29% of the gap for a median
-line and 51% at p75**. Distributing words across the whole gap therefore makes
-emphasis drift progressively behind the vocal and snap back at each new line.
+line's start, which usually includes dead air after the vocal stops — measured
+at 29% of the gap for a median line and 51% at p75. Spreading words across the
+whole gap makes emphasis drift progressively behind the vocal.
 
-Instead, each line's words are spread over an *estimated sung duration*:
-`min(gap, characters × rate)`. The rate is measured **per song** — the 20th
-percentile of gap ÷ characters, which approximates continuous singing in dense
-passages — because real rates vary about 2× between a fast pop track (0.050
-s/char) and a ballad (0.096 s/char). Once the words are done the line simply
-stays on screen fully sung until the next one.
+Instead each line's words are spread over an estimated sung duration,
+`min(gap, characters × rate)`, where the rate is measured **per song** from the
+20th percentile of gap ÷ characters. Real rates vary about 2× between a fast
+pop track and a ballad, so a global constant cannot fit both.
 
-### About word-by-word sync
+Quran recitation needs none of this: quran.com publishes measured per-word
+segments, so those timings are exact rather than inferred.
 
-Spotify's own lyrics are `LINE_SYNCED` — one timestamp per line, no word
-timings. No free source exposes real per-word data either. So each line's
-duration is distributed across its words weighted by character length, and each
-word brightens as it comes due. The `WordToken` model carries an `isEstimated`
-flag, so a genuine word-level provider can drop in later without changing
-anything downstream.
+### Matching
 
-## Architecture
+Free lyric databases are inconsistent, and a wrong match is worse than none. A
+candidate is rejected unless its declared duration, title and artist all agree
+with the track, and CJK lyrics are refused for a track whose own metadata is
+entirely Latin.
 
-`NotchLyricsCore` is a pure library with no AppKit or SwiftUI import — all
-parsing, timing, geometry, and network logic lives there and is unit-tested.
-`NotchLyricsApp` is the thin AppKit/SwiftUI shell.
+Results are cached per track. A genuine miss is remembered briefly; a network
+failure is not remembered at all, so a moment of bad connectivity cannot blank
+a track.
 
-```
-SpotifyBridge (1 Hz + PlaybackStateChanged)
-      │ PlaybackState
-      ▼
-PlaybackClock ──60 Hz──> OverlayController ──> OverlayWindow (NSPanel)
-      ▲                        │                     │ Anchor
-      │                        ▼                     ▼
-   samples             LyricsService          LyricView (word sweep)
-                    LRCLIB → NetEase
-                         │
-                    LyricsCache
-```
+## Lyric sources
 
-Spotify is polled at 1 Hz because an AppleScript round trip costs ~54 ms warm
-(251 ms cold). `PlaybackClock` interpolates between samples against a
-`ContinuousClock`, easing corrections under 0.25 s over a 200 ms window and
-snapping on anything larger, which it treats as a seek.
+| Source | Notes |
+|---|---|
+| **LRCLIB** | Free, no key, no account. Community-contributed, so coverage varies |
+| **NetEase** | Fallback, no auth, stronger Asian-language coverage |
+| **quran.com** | Verse text and measured per-word recitation timings |
+
+Coverage is not total. Some tracks have no timed lyrics anywhere, in which case
+the overlay stays quiet rather than showing something wrong.
 
 ## Tests
 
@@ -146,17 +149,17 @@ snapping on anything larger, which it treats as a seek.
 swift test
 ```
 
-87 tests covering LRC parsing (offsets, multi-timestamp lines, enhanced word
-tags, NetEase credit lines, malformed input), word-timing distribution, clock
-drift and seek detection, anchor geometry against measured hardware values, and
-both providers against recorded live-response fixtures. No network, no UI.
+182 tests, no network and no UI: LRC parsing, per-song rate estimation, clock
+drift and seek behaviour, source arbitration, CJK segmentation, mushaf-line
+assembly, match validation, cache invalidation, and anchor geometry checked
+against measured hardware values.
 
 ## Docs
 
-- Design: `docs/superpowers/specs/2026-08-30-notch-lyrics-design.md`
-- Plan: `docs/superpowers/plans/2026-08-30-notch-lyrics.md`
+Design notes and implementation plans live in `docs/superpowers/`.
 
 ## Notes
 
 Personal, local use. Not sandboxed, not notarized. Lyrics come from third-party
-community APIs; be considerate with request volume.
+community APIs — be considerate with request volume. Screenshots show the app
+in use; the songs and recordings belong to their respective rights holders.
