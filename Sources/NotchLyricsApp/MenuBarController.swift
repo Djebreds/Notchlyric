@@ -35,6 +35,29 @@ final class MenuBarController {
             menu.addItem(mi)
         }
 
+        let offsetHeader = NSMenuItem(
+            title: "Sync Offset  \(SyncOffset.label(Settings.shared.syncOffset))",
+            action: nil, keyEquivalent: "")
+        offsetHeader.isEnabled = false
+        menu.addItem(offsetHeader)
+
+        let earlier = NSMenuItem(title: "  Lyrics Earlier  (−0.25s)",
+                                 action: #selector(nudgeEarlier), keyEquivalent: "[")
+        earlier.target = self
+        menu.addItem(earlier)
+
+        let later = NSMenuItem(title: "  Lyrics Later  (+0.25s)",
+                               action: #selector(nudgeLater), keyEquivalent: "]")
+        later.target = self
+        menu.addItem(later)
+
+        if abs(Settings.shared.syncOffset) > 0.001 {
+            let reset = NSMenuItem(title: "  Reset Offset", action: #selector(resetOffset),
+                                   keyEquivalent: "")
+            reset.target = self
+            menu.addItem(reset)
+        }
+
         menu.addItem(.separator())
 
         let styleHeader = NSMenuItem(title: "Lyric Style", action: nil, keyEquivalent: "")
@@ -89,6 +112,21 @@ final class MenuBarController {
         guard let raw = sender.representedObject as? String,
               let p = Position(rawValue: raw) else { return }
         Settings.shared.position = p
+        rebuild()
+    }
+
+    @objc private func nudgeEarlier() {
+        Settings.shared.syncOffset = SyncOffset.nudged(Settings.shared.syncOffset, by: .earlier)
+        rebuild()
+    }
+
+    @objc private func nudgeLater() {
+        Settings.shared.syncOffset = SyncOffset.nudged(Settings.shared.syncOffset, by: .later)
+        rebuild()
+    }
+
+    @objc private func resetOffset() {
+        Settings.shared.syncOffset = 0
         rebuild()
     }
 

@@ -8,6 +8,7 @@ final class Settings {
         static let netEaseEnabled = "netEaseEnabled"
         static let sweepStyle = "sweepStyle"
         static let romanizeCJK = "romanizeCJK"
+        static let syncOffset = "syncOffset"
     }
 
     static let shared = Settings()
@@ -32,6 +33,12 @@ final class Settings {
     var romanizeCJK: Bool {
         get { defaults.object(forKey: Key.romanizeCJK) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.romanizeCJK); onChange?() }
+    }
+
+    /// Manual nudge for lyric timings that are offset against this recording.
+    var syncOffset: TimeInterval {
+        get { SyncOffset.clamp(defaults.double(forKey: Key.syncOffset)) }
+        set { defaults.set(SyncOffset.clamp(newValue), forKey: Key.syncOffset); onChange?() }
     }
 
     var netEaseEnabled: Bool {
