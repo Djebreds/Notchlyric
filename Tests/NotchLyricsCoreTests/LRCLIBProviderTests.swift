@@ -126,3 +126,49 @@ private let lrclibSyncedAlbum = """
     let doc = try await LRCLIBProvider(http: http).fetch(sampleQuery)
     #expect(doc == nil)
 }
+
+// MARK: - choosing between two attempts
+
+private let taggedButBadlyTailed = """
+{"id":1,"trackName":"T","artistName":"A","albumName":"Single","duration":242.0,
+ "instrumental":false,"plainLyrics":"x",
+ "syncedLyrics":"[00:39.00] alpha\\n[05:36.00] omega"}
+"""
+
+private let tightlyFitting = """
+{"id":2,"trackName":"T","artistName":"A","albumName":"Studio","duration":242.0,
+ "instrumental":false,"plainLyrics":"x",
+ "syncedLyrics":"[00:21.00] alpha\\n[04:00.00] omega"}
+"""
+
+@Test func prefersTheAttemptWhoseTimingsFitTheTrack() async throws {
+    let http = StubHTTP()
+    // the album-constrained attempt has timestamps, but they run far past the end
+    await http.stub(urlContains: "album_name=Born", json: taggedButBadlyTailed)
+    await http.stub(urlContains: "lrclib", json: tightlyFitting)
+    var q = sampleQuery
+    q.duration = 242
+    let doc = try await LRCLIBProvider(http: http).fetch(q)
+    #expect(doc != nil)
+    // 21s..240s fits; 39s..336s does not
+    #expect(abs(doc!.lines[0].start - 21) < 0.5, "should have taken the better-fitting entry")
+    #expect(await http.requestedURLs.count == 2, "both attempts should run")
+}
+
+@Test func keepsTheFirstAttemptWhenItAlreadyFits() async throws {
+    let http = StubHTTP()
+    await http.stub(urlContains: "lrclib", json: tightlyFitting)
+    var q = sampleQuery
+    q.duration = 242
+    _ = try await LRCLIBProvider(http: http).fetch(q)
+    #expect(await http.requestedURLs.count == 1, "no need for a second request")
+}
+
+@Test func keepsTheFirstAttemptWhenNeitherFits() async throws {
+    let http = StubHTTP()
+    await http.stub(urlContains: "lrclib", json: taggedButBadlyTailed)
+    var q = sampleQuery
+    q.duration = 242
+    let doc = try await LRCLIBProvider(http: http).fetch(q)
+    #expect(doc != nil, "a poorly-tailed entry still beats nothing")
+}

@@ -13,18 +13,40 @@ public struct LRCLIBProvider: LyricsProvider {
     }
 
     public func fetch(_ track: TrackQuery) async throws -> LyricsDocument? {
-        // The album Spotify reports is often the single, while the timed entry
-        // sits under the studio album, so an exact match can return an entry
-        // that only has plain text. Retry without the album, keeping duration
-        // so the match stays constrained.
-        if let lrc = try await syncedLyrics(for: track, includeAlbum: true) {
-            return buildDocument(for: track, lrc: lrc)
+        // The album a player reports is often the single, while the timed entry
+        // sits under the studio album, so two attempts are made. The second is
+        // used when the first has no timestamps at all, and also when the
+        // first's timings clearly do not belong to this recording.
+        let withAlbum = try await syncedLyrics(for: track, includeAlbum: true)
+        if let withAlbum, fits(withAlbum, track) {
+            return buildDocument(for: track, lrc: withAlbum)
         }
-        if !track.album.isEmpty,
-           let lrc = try await syncedLyrics(for: track, includeAlbum: false) {
-            return buildDocument(for: track, lrc: lrc)
+
+        let withoutAlbum = track.album.isEmpty
+            ? nil
+            : try await syncedLyrics(for: track, includeAlbum: false)
+        if let withoutAlbum, fits(withoutAlbum, track) {
+            return buildDocument(for: track, lrc: withoutAlbum)
         }
+
+        // Neither fits cleanly. A poorly-tailed entry still beats nothing, so
+        // fall back rather than reject — choosing between candidates is safe,
+        // rejecting the only candidate is not.
+        if let withAlbum { return buildDocument(for: track, lrc: withAlbum) }
+        if let withoutAlbum { return buildDocument(for: track, lrc: withoutAlbum) }
         return nil
+    }
+
+    /// Whether an entry's timings plausibly belong to this recording.
+    ///
+    /// Used only to choose between two candidates, never to reject outright:
+    /// real files carry trailing credit lines past the audio, so a generous
+    /// margin keeps a good entry from losing to nothing.
+    private func fits(_ lrc: String, _ track: TrackQuery) -> Bool {
+        guard track.duration > 0 else { return true }
+        let lines = LRCParser.parse(lrc, trackDuration: track.duration)
+        guard let last = lines.map(\.start).max() else { return false }
+        return last <= track.duration + 15
     }
 
     private func syncedLyrics(for track: TrackQuery, includeAlbum: Bool) async throws -> String? {
