@@ -33,13 +33,23 @@ public actor LyricsService {
         }
 
         var anyProviderFailed = false
+        var best: (document: LyricsDocument, score: Double)?
 
         for provider in providers {
             do {
-                if let doc = try await provider.fetch(track) {
-                    await cache.store(trackID: track.trackID, document: doc)
-                    return doc
+                guard let doc = try await provider.fetch(track) else { continue }
+
+                // Sources often hold a different recording of the same song,
+                // whose timings drift against the audio. Score each candidate
+                // against the track instead of trusting whichever answers
+                // first, so a badly matched entry cannot win by position.
+                let score = FitScore.of(doc, track: track)
+                if best == nil || score > best!.score {
+                    best = (doc, score)
                 }
+                // A candidate that clearly matches this recording is taken
+                // straight away, so the common case costs no extra requests.
+                if FitScore.isGoodEnough(score) { break }
             } catch {
                 // A transient failure is not evidence that the track has no
                 // lyrics. Remembering it as a miss would blank the track until
@@ -47,6 +57,11 @@ public actor LyricsService {
                 anyProviderFailed = true
                 log.error("provider \(provider.id, privacy: .public) failed: \(error)")
             }
+        }
+
+        if let best {
+            await cache.store(trackID: track.trackID, document: best.document)
+            return best.document
         }
 
         if !anyProviderFailed {
